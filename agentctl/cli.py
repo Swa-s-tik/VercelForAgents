@@ -105,6 +105,11 @@ def build_parser() -> argparse.ArgumentParser:
         add_gateway_parsers(sub)
     except Exception:
         pass
+    try:
+        from agentctl.control.cli import add_webhook_parsers
+        add_webhook_parsers(sub)
+    except Exception:
+        pass
     return p
 
 
