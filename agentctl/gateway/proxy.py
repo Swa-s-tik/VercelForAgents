@@ -21,8 +21,9 @@ pb, dp, dpg, _cp, _cpg = load()
 
 
 class GatewayServicer(dpg.AgentStreamServicer):
-    def __init__(self, router: Router | None = None):
+    def __init__(self, router: Router | None = None, channel_options=None):
         self.router = router or Router(RouteCache())
+        self._channel_options = channel_options
         self._channels: dict[str, grpc.aio.Channel] = {}
         self.stats = {"sessions": 0, "by_arm": {}, "shadow_sent": 0,
                       "shadow_dropped": 0, "shadow_received": 0}
@@ -30,7 +31,7 @@ class GatewayServicer(dpg.AgentStreamServicer):
     def _stub(self, endpoint: str):
         ch = self._channels.get(endpoint)
         if ch is None:
-            ch = grpc.aio.insecure_channel(endpoint)   # one pooled channel per backend
+            ch = grpc.aio.insecure_channel(endpoint, options=self._channel_options)  # pooled per backend
             self._channels[endpoint] = ch
         return dpg.AgentStreamStub(ch)
 
@@ -78,9 +79,10 @@ class GatewayServicer(dpg.AgentStreamServicer):
         return dp.HealthReply(ready=True, version_tag="gateway")
 
 
-async def serve(port: int, servicer: GatewayServicer | None = None) -> tuple[grpc.aio.Server, GatewayServicer]:
+async def serve(port: int, servicer: GatewayServicer | None = None,
+                options=None) -> tuple[grpc.aio.Server, GatewayServicer]:
     servicer = servicer or GatewayServicer()
-    server = grpc.aio.server()
+    server = grpc.aio.server(options=options)
     dpg.add_AgentStreamServicer_to_server(servicer, server)
     server.add_insecure_port(f"[::]:{port}")
     await server.start()

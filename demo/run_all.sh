@@ -36,6 +36,12 @@ python demo/gateway_demo.py
 echo; echo "===== 4. Vertical B — WebSocket edge interrupt ====="
 python demo/ws_demo.py
 
+echo; echo "===== 5. Phase 2 — multi-modal gRPC stress test ====="
+python demo/yolo_stress_client.py
+
+echo; echo "===== 6. Phase 2 — dynamic eval-gate (synthetic judge -> DuckDB) ====="
+./demo/run_eval_gate.sh
+
 echo; echo "############################################################"
 echo "#                 all demos complete ✔                      #"
 echo "############################################################"

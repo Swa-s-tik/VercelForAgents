@@ -64,8 +64,8 @@ class EchoAgent(dpg.AgentStreamServicer):
                               version_tag=self.version)
 
 
-async def serve(version_tag: str, port: int) -> grpc.aio.Server:
-    server = grpc.aio.server()
+async def serve(version_tag: str, port: int, options=None) -> grpc.aio.Server:
+    server = grpc.aio.server(options=options)
     dpg.add_AgentStreamServicer_to_server(EchoAgent(version_tag), server)
     server.add_insecure_port(f"[::]:{port}")
     await server.start()
