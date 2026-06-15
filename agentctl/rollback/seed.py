@@ -48,13 +48,14 @@ def _pointers(ns: str, migration: int, seq: int, with_side_effect: bool) -> list
     return pts
 
 
-def _insert_deployment(conn, project_id, sha, migration) -> int:
+def _insert_deployment(conn, project_id, sha, migration, endpoint, version_tag) -> int:
     with conn.cursor() as cur:
         cur.execute(
             """INSERT INTO controlplane.deployments
                (project_id, git_commit_sha, status, created_by, build_meta)
                VALUES (%s,%s,'ready','seed',%s) RETURNING id""",
-            [project_id, sha, Json({"migration_version": migration})])
+            [project_id, sha, Json({"migration_version": migration,
+                                    "endpoint": endpoint, "version_tag": version_tag})])
         return cur.fetchone()["id"]
 
 
@@ -67,8 +68,8 @@ def seed(conn: psycopg.Connection, project_id: str = DEMO_PROJECT_ID) -> dict:
             "RESTART IDENTITY CASCADE")
     conn.commit()
 
-    a_id = _insert_deployment(conn, project_id, SHA_A, 36)
-    b_id = _insert_deployment(conn, project_id, SHA_B, 37)
+    a_id = _insert_deployment(conn, project_id, SHA_A, 36, "localhost:50051", "vA")
+    b_id = _insert_deployment(conn, project_id, SHA_B, 37, "localhost:50052", "vB")
     conn.commit()
 
     mf.seal_checkpoint(conn, a_id, SHA_A, _pointers("proj-a1-ns-v36", 36, 1000, with_side_effect=False))
@@ -86,11 +87,13 @@ def seed(conn: psycopg.Connection, project_id: str = DEMO_PROJECT_ID) -> dict:
     # B goes 100% live (deploy).
     routing.flip_routing(conn, project_id, b_id, reason=f"deploy:{SHA_B}", actor="seed", notify=False)
 
-    # External-store stub live state == B's coordinates.
-    JsonBackend().save({
-        "vector": {"alias_namespace": "proj-a1-ns-v37"},
-        "memory": {"snapshot_seq": 1180, "log_offset": 1180},
-        "schema": {"migration_version": 37},
-    })
+    # Initialize the FUNCTIONAL external-store mocks to B's live coordinates.
+    JsonBackend().save({})   # reset the simulated external state
+    _vec.upsert("proj-a1-ns-v36", range(50), snapshot_id="snap-proj-a1-ns-v36")  # A's collection
+    _vec.upsert("proj-a1-ns-v37", range(80), snapshot_id="snap-proj-a1-ns-v37")  # B's collection
+    _vec.set_alias("proj-a1-ns-v37")                                              # live = B
+    _mem.append_many(1180, lambda i: SHA_A if i < 1000 else SHA_B)               # txn log (A:0-999, B:1000-1179)
+    _mem.set_head(1180, 1180)                                                     # HEAD = B
+    _sch.set_version(37)
 
     return {"project_id": project_id, "A": {"id": a_id, "sha": SHA_A}, "B": {"id": b_id, "sha": SHA_B}}

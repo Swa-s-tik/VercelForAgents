@@ -1,9 +1,8 @@
-"""Relational-schema stub: the genuinely-hard case (forward_fix, not reversible).
+"""Relational schema — functional mock with a migration history (Phase 8).
 
-A down-migration that drops a column DESTROYS data — that is loss, not restore. So this
-store REFUSES to auto-run a data-lossy down-migration and signals that a forward-fix is
-required. Forward/equal moves (expand-compatible) are allowed. This is why the design
-prefers expand-contract: a code rollback then needs no schema rollback at all.
+The genuinely-hard case. A down-migration that drops a column DESTROYS data, so this store
+REFUSES to auto-run a data-lossy down-migration and signals a forward-fix is required.
+Forward/equal moves (expand-compatible) are allowed and recorded in the migration history.
 """
 from __future__ import annotations
 
@@ -20,6 +19,19 @@ class SchemaStoreStub:
     def __init__(self, backend: JsonBackend | None = None):
         self.backend = backend or JsonBackend()
 
+    def _schema(self):
+        st = self.backend.load()
+        return st, st.setdefault("schema", {"migration_version": None, "history": []})
+
+    def migrate(self, version: int) -> None:
+        st, s = self._schema()
+        s["migration_version"] = version
+        s.setdefault("history", []).append(version)
+        self.backend.save(st)
+
+    set_version = migrate  # alias
+
+    # ---- StateStore interface (unchanged semantics) ------------------------
     def snapshot(self, coordinate: dict) -> str:
         return digest(str(coordinate["migration_version"]))
 
@@ -29,11 +41,14 @@ class SchemaStoreStub:
         if live is not None and target < live:
             raise SchemaMigrationError(
                 f"down-migration {live} -> {target} would drop data; forward-fix required")
-        self.backend.set("schema", {"migration_version": target})
+        self.migrate(target)
         return self.live_digest()
 
     def live_digest(self) -> str:
-        return digest(str(self.backend.get("schema", {}).get("migration_version")))
+        return digest(str(self.live_version()))
 
     def live_version(self):
         return self.backend.get("schema", {}).get("migration_version")
+
+    def history(self) -> list:
+        return self.backend.get("schema", {}).get("history", [])
