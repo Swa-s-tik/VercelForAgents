@@ -47,8 +47,8 @@ def flip_routing(conn: psycopg.Connection, project_id: str, to_deployment_id: in
     return rt_id, version
 
 
-def install_weighted(conn: psycopg.Connection, project_id: str,
-                     rules: list[dict], *, reason: str, actor: str) -> tuple[int, int]:
+def install_weighted(conn: psycopg.Connection, project_id: str, rules: list[dict],
+                     *, reason: str, actor: str, notify: bool = True) -> tuple[int, int]:
     """Install a multi-backend live table (canary/shadow). ``rules`` items:
     {deployment_id, weight, is_canary?, shadow_target?}. Same atomic discipline as flip."""
     with conn.transaction():
@@ -73,6 +73,9 @@ def install_weighted(conn: psycopg.Connection, project_id: str,
                        VALUES (%s,%s,%s,%s,%s)""",
                     [rt_id, r["deployment_id"], r.get("weight", 0),
                      r.get("is_canary", False), r.get("shadow_target", False)])
+            if notify:
+                cur.execute("SELECT pg_notify('routing_changed', %s)",
+                            [json.dumps({"project": str(project_id), "version": version})])
     return rt_id, version
 
 

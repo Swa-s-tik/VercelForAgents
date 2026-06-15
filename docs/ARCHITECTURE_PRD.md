@@ -155,25 +155,28 @@ in Go (goroutine-per-stream, zero-copy `[]byte` forward) or Rust (tonic + tokio)
 **frozen proto** + the header-only-parse forwarding design. Agents, the WS bridge, and the
 control plane are unchanged; a golden-wire conformance suite (roadmap) guards parity.
 
-## 8. What is real vs stubbed
+## 8. What is real vs stubbed (after Phase 2)
 
-| Real (proven runnable) | Stubbed (named seam, deferred) |
+| Real (proven runnable) | Still stubbed / deferred |
 |---|---|
-| Eval gate math + DuckDB store + multi-suite BH (14 tests) | live LLM judge; container preview provisioning |
-| Postgres schema + atomic flip + idempotent rollback + audit (integration test) | real vector/memory/schema adapters (in-proc stubs honor `StateStore`) |
-| gRPC bidi proxy: sticky canary + shadow + interrupt; WS edge (router tests + 2 demos) | Postgres-fed route cache (`WatchRoutes`/LISTEN-NOTIFY); OTLP export; auth/TLS |
+| Eval gate math + DuckDB + multi-suite BH + **sequential SPRT/anytime early-stop** (tests) | live LLM judge (synthetic judge + cassettes stand in) |
+| Postgres SoR + atomic flip + idempotent rollback + audit + **functional vector/memory engines** | managed vector/memory adapters (Pinecone/Qdrant/pgvector) |
+| gRPC proxy (sticky canary + shadow + interrupt) + WS edge + **multimodal 30MB/s stress** | Go data plane is scaffolded (`gateway_core`), not yet the live plane |
+| **PG route cache via LISTEN/NOTIFY + version-poll** (instant, zero-drop switch) | auth/TLS; multi-gateway |
+| **Container/process preview runtime**, **git webhook → deployment registration** | hosted GitHub App (local emulator stands in) |
+| **OTel → Postgres span exporter**; ClickHouse warehouse schema + env toggle | live ClickHouse cluster (schema + OTLP path ready) |
+| **Tool sandbox interceptor** (write→sandbox, external→mock, real side-effects blocked) | network-level (mitmproxy) interception for un-instrumented SDKs |
 
 ## 9. Roadmap to OSS release
 
-- **Phase 1 — Foundations (this repo).** Monorepo, PRD, both schemas, 3 runnable prototypes,
+- **Phase 1 — Foundations (done).** Monorepo, PRD, both schemas, 3 runnable prototypes,
   tests, docker-compose, demos. The 5-minute local setup.
-- **Phase 2 — Integration & hardening.** Wire the full flow (push → preview registers backend
-  → canary → eval-gate → 1-click rollback). Replace stubs: container previews + CI webhook;
-  `WatchRoutes` + LISTEN/NOTIFY cache; OTLP exporter; real tool-mock runtime; auth/TLS;
-  anytime-valid eval; proto conformance suite.
-- **Phase 3 — Production & launch.** Go/Rust gateway data plane behind the frozen proto;
-  ClickHouse + Grafana/Tempo; Helm/operator; multi-tenant RBAC; managed vector/memory
-  adapters (Pinecone/Qdrant/pgvector); docs site; Apache-2.0 governance + first tagged release.
+- **Phase 2 — Integration & hardening (delivered, see §11).** Full flow wired
+  (push → preview → canary → multimodal traffic → sequential eval-gate → rollback → routing
+  integrity), validated end-to-end by `demo/run_complete_pipeline.sh`.
+- **Phase 3 — Production & launch.** Compile/cut over the Go `gateway_core` behind the frozen
+  proto (golden-wire conformance); live ClickHouse + Grafana/Tempo; Helm/operator; multi-tenant
+  RBAC; managed vector/memory adapters; docs site; Apache-2.0 governance + first tagged release.
 
 ## 10. Deliverables map
 
@@ -184,3 +187,27 @@ control plane are unchanged; a golden-wire conformance suite (roadmap) guards pa
 | DuckDB schema | `agentctl/storage/schema_duckdb.sql` |
 | Working prototype(s) | all three verticals + `demo/` + `tests/` |
 | Roadmap | §9 |
+
+## 11. Phase 2 — Integration & Hardening (delivered)
+
+Ten hardening tracks, each runnable and (where local) tested. New modules:
+
+| # | Track | Module(s) | Proof |
+|---|---|---|---|
+| 1 | Container/process preview runtime | `runtime/isolated.py` (`ProcessRuntime`, `DockerRuntime`) | `tests/test_runtime.py` (gRPC-health lifecycle; Docker busybox) |
+| 2 | Git webhook → deployment registration | `control/webhook.py` (+ FastAPI app, CLI) | `tests/test_webhook.py` (register + provision preview) |
+| 3 | LISTEN/NOTIFY route cache | `gateway/pg_route_cache.py` (async LISTEN + version-poll backstop) | `demo/route_watch_demo.py` (instant switch, zero dropped streams) |
+| 4 | Sequential eval (early stop) | `eval/engine.py` (Wald SPRT + anytime Hoeffding CS) | blocks inferior @ ~79/1000 (92% compute saved) |
+| 5 | OTel instrumentation | `telemetry/exporter.py` (`PostgresSpanExporter`, `make_tracer_provider`) | `demo/telemetry_demo.py` (spans → `otel_spans`) |
+| 6 | ClickHouse warehouse | `storage/schema_clickhouse.sql` (MergeTree + aggregating MVs) | env toggle `TELEMETRY_BACKEND=clickhouse` |
+| 7 | Tool sandbox interceptor | `runtime/sandbox_interceptor.py`, `mocking/{registry,cassette}.py` | `tests/test_sandbox.py` (real DB/email untouched) |
+| 8 | State realignment engines | `rollback/stores/*` upgraded to functional (collections+alias / event-log+rewind) | `test_rollback.py` (180 events tombstoned on rewind) |
+| 9 | Go data-plane scaffold | `gateway_core/` (grpc-go, frozen proto, build Makefile) | builds on a host with go+protoc |
+| 10 | End-to-end pipeline | `demo/complete_pipeline.py` + `demo/run_complete_pipeline.sh` | **green**: push→preview→canary→multimodal→SPRT BLOCK→rollback→routing |
+
+Key structural notes: the gateway's `RouteCache` seam now has a Postgres-backed implementation
+(`PgRouteCache`) fed by Vertical C's `pg_notify('routing_changed')` flip — the gateway hot-swaps
+routing within one poll interval while sticky sessions keep active streams alive. Optional
+`tracer`/`channel_options` were added to `GatewayServicer` (backward compatible; off by default).
+A nested-transaction footgun was fixed at call sites: commit any open read txn before
+`flip_routing`/`install_weighted` so the in-transaction `pg_notify` actually commits.
