@@ -1,0 +1,24 @@
+# Local infra for agentctl. Only Postgres is required for the prototype.
+# ClickHouse is included (commented) to show the production telemetry boundary.
+services:
+  postgres:
+    image: postgres:16
+    container_name: agentctl-pg
+    environment:
+      POSTGRES_USER: agentctl
+      POSTGRES_PASSWORD: agentctl
+      POSTGRES_DB: agentctl
+    ports:
+      - "5433:5432"   # host 5433 -> container 5432 (avoid clashing with a local pg)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentctl -d agentctl"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  # --- Production telemetry warehouse (not needed for the prototype) ---
+  # clickhouse:
+  #   image: clickhouse/clickhouse-server:24.3
+  #   container_name: agentctl-ch
+  #   ports: ["8123:8123", "9000:9000"]
+  #   ulimits: { nofile: { soft: 262144, hard: 262144 } }

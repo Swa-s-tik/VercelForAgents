@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.agentctl/
+*.duckdb
+*.duckdb.wal
+.venv/
+*.egg-info/
+build/
+dist/
+# generated gRPC stubs (regenerated from proto/ via grpc_tools.protoc)
+agentctl/gen/*_pb2.py
+agentctl/gen/*_pb2_grpc.py
+agentctl/gen/*_pb2.pyi
+.pytest_cache/
