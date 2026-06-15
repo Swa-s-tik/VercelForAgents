@@ -1,0 +1,68 @@
+// The frozen message vocabulary for all internal agentctl streams (Vertical B).
+// A Go/Rust data-plane reimplementation MUST honor this byte-for-byte. Header fields
+// 1-4 are frozen forever so the proxy can forward on a cheap header-only parse.
+syntax = "proto3";
+package acp.v1;
+option go_package = "github.com/agentctl/gen/acpv1;acpv1";
+
+message Frame {
+  // --- routing/identity header (fields 1-4 FROZEN) ---
+  string    session_id = 1;   // stable for the life of the logical conversation
+  uint64    stream_id  = 2;   // logical sub-stream within a session (multiplex key)
+  uint64    seq        = 3;   // monotonic per (session_id, stream_id); ordering + dedup
+  Direction direction  = 4;   // set by the gateway
+
+  // --- exactly one payload ---
+  oneof payload {
+    TextDelta        text         = 5;
+    BinaryChunk      binary       = 6;
+    ToolCall         tool_call    = 7;
+    ToolResult       tool_result  = 8;
+    Control          control      = 9;
+    ApprovalRequest  approval_req = 10;
+    ApprovalResponse approval_res = 11;
+    TurnEnd          turn_end     = 12;
+    StreamError      error        = 13;
+  }
+
+  map<string, string> attributes    = 16;  // traceparent, deployment_id, canary_arm, shadow=true...
+  int64               ts_unix_nanos = 17;
+}
+
+enum Direction { DIRECTION_UNSPECIFIED = 0; CLIENT_TO_AGENT = 1; AGENT_TO_CLIENT = 2; }
+enum Modality   { MODALITY_UNSPECIFIED = 0; TEXT = 1; VIDEO_FRAME = 2; AUDIO_PCM = 3; IMAGE = 4; TENSOR = 5; FILE = 6; }
+enum ControlKind { CONTROL_UNSPECIFIED = 0; INTERRUPT = 1; CANCEL = 2; FLOW_CREDIT = 3; PING = 4; PONG = 5; DRAIN = 6; }
+enum RiskLevel    { RISK_UNSPECIFIED = 0; LOW = 1; MEDIUM = 2; HIGH = 3; }
+enum Decision     { DECISION_UNSPECIFIED = 0; APPROVE = 1; DENY = 2; ABSTAIN = 3; }
+enum FinishReason { FINISH_UNSPECIFIED = 0; STOP = 1; LENGTH = 2; INTERRUPTED = 3; ERROR = 4; TOOL = 5; }
+
+message TextDelta { string content = 1; bool partial = 2; }
+
+// Binary is chunked at the SOURCE; the gateway never reassembles.
+message BinaryChunk {
+  Modality modality  = 1;
+  string   codec     = 2;   // "h264","jpeg","pcm_s16le","raw_rgb","npy"
+  uint64   group_id  = 3;
+  uint32   index     = 4;
+  bool     last      = 5;
+  bytes    data      = 6;   // <= 256 KiB by convention
+  uint32   width     = 7;
+  uint32   height    = 8;
+  uint64   pts_nanos = 9;
+}
+
+message ToolCall {
+  string call_id        = 1;
+  string tool_name      = 2;
+  bytes  arguments      = 3;   // gateway does not parse
+  bool   side_effecting = 4;   // TRUE => a shadow run MUST mock this
+}
+message ToolResult { string call_id = 1; bytes result = 2; bool is_error = 3; bool mocked = 4; }
+
+message Control { ControlKind kind = 1; string reason = 2; uint64 ack_seq = 3; uint32 credits = 4; }
+
+message ApprovalRequest { string approval_id = 1; string action_summary = 2; bytes action_payload = 3; int64 expires_at_unix = 4; RiskLevel risk = 5; }
+message ApprovalResponse { string approval_id = 1; Decision decision = 2; string actor = 3; bytes modified_payload = 4; }
+
+message TurnEnd { string turn_id = 1; FinishReason reason = 2; uint32 prompt_tokens = 3; uint32 completion_tokens = 4; }
+message StreamError { uint32 code = 1; string message = 2; bool retryable = 3; }

@@ -1,0 +1,43 @@
+// Gateway -> control-plane (Vertical C / Postgres) service. The gateway is the client.
+// In the prototype the gateway uses a local route_cache stub instead of calling this, but
+// the contract is defined here because it is the real seam.
+syntax = "proto3";
+package acp.v1;
+option go_package = "github.com/agentctl/gen/acpv1;acpv1";
+
+service ControlPlane {
+  rpc ResolveRoute(ResolveRouteRequest) returns (RouteTable);
+  rpc WatchRoutes(WatchRequest) returns (stream RouteTable);   // push table updates (no polling)
+  rpc ReportTelemetry(stream TelemetryBatch) returns (TelemetryAck);
+}
+
+message ResolveRouteRequest { string deployment_id = 1; }
+message WatchRequest { repeated string deployment_ids = 1; }
+
+message RouteTable {
+  string deployment_id = 1;
+  uint64 version       = 2;            // monotonic; cache-invalidation key
+  repeated Backend primary = 3;        // weighted set for canary splitting
+  repeated Backend shadow  = 4;        // mirror targets (responses discarded)
+  StickyPolicy sticky  = 5;
+  int64 ttl_seconds    = 6;
+}
+
+message Backend {
+  string backend_id  = 1;
+  string endpoint    = 2;              // host:port (gRPC target)
+  uint32 weight      = 3;              // canary weight (basis points / arbitrary)
+  string version_tag = 4;
+  bool   accepts_binary = 5;
+  ShadowPolicy shadow_policy = 6;
+}
+
+enum StickyPolicy { STICKY_UNSPECIFIED = 0; STICKY_SESSION = 1; STICKY_NONE = 2; }
+message ShadowPolicy { bool mock_side_effects = 1; uint32 sample_percent = 2; uint32 max_added_latency_ms = 3; }
+
+message TelemetryBatch { repeated TelemetryEvent events = 1; }
+message TelemetryEvent {
+  string session_id = 1; string deployment_id = 2; string canary_arm = 3; string event_type = 4;
+  map<string,double> measures = 5; map<string,string> labels = 6; int64 ts_unix_nanos = 7;
+}
+message TelemetryAck { uint64 accepted = 1; }

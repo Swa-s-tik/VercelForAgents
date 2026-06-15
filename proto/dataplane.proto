@@ -1,0 +1,22 @@
+// The agent-facing service. Implemented by EVERY agent backend AND by the gateway
+// (the gateway is a server to clients and a client to agents). Symmetric bidi.
+syntax = "proto3";
+package acp.v1;
+import "envelope.proto";
+option go_package = "github.com/agentctl/gen/acpv1;acpv1";
+
+service AgentStream {
+  // The one hot-path RPC. Fully duplex; stream_id multiplexing happens INSIDE this call.
+  rpc Converse(stream Frame) returns (stream Frame);
+  // Liveness/capacity for the routing table.
+  rpc Health(HealthRequest) returns (HealthReply);
+}
+
+message HealthRequest { string deployment_id = 1; }
+message HealthReply {
+  bool   ready            = 1;
+  uint32 inflight_streams = 2;
+  uint32 max_streams      = 3;
+  repeated Modality supported_modalities = 4;
+  string version_tag      = 5;
+}
