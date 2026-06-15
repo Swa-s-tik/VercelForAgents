@@ -21,9 +21,10 @@ pb, dp, dpg, _cp, _cpg = load()
 
 
 class GatewayServicer(dpg.AgentStreamServicer):
-    def __init__(self, router: Router | None = None, channel_options=None):
+    def __init__(self, router: Router | None = None, channel_options=None, tracer=None):
         self.router = router or Router(RouteCache())
         self._channel_options = channel_options
+        self._tracer = tracer          # optional OTel tracer (Phase 5); None = zero overhead
         self._channels: dict[str, grpc.aio.Channel] = {}
         self.stats = {"sessions": 0, "by_arm": {}, "shadow_sent": 0,
                       "shadow_dropped": 0, "shadow_received": 0}
@@ -65,15 +66,27 @@ class GatewayServicer(dpg.AgentStreamServicer):
                 await s.close()
 
         pump_task = asyncio.create_task(pump())
+        n_out = 0
         try:
             async for resp in primary:
                 resp.attributes["canary_arm"] = decision.arm
+                n_out += 1
                 yield resp
         finally:
             await pump_task
             self.stats["shadow_sent"] += sum(s.sent for s in shadows)
             self.stats["shadow_dropped"] += sum(s.dropped for s in shadows)
             self.stats["shadow_received"] += sum(s.received for s in shadows)
+            if self._tracer is not None:
+                try:
+                    from agentctl.telemetry.exporter import record_stream_metrics
+                    record_stream_metrics(
+                        self._tracer, session_id=session_id, canary_arm=decision.arm,
+                        measures={"frames_out": float(n_out),
+                                  "shadow_sent": float(sum(s.sent for s in shadows)),
+                                  "shadow_dropped": float(sum(s.dropped for s in shadows))})
+                except Exception:
+                    pass
 
     async def Health(self, request, context):
         return dp.HealthReply(ready=True, version_tag="gateway")
