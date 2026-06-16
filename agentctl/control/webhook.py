@@ -60,7 +60,8 @@ def _merge_build_meta(conn, dep_id: int, extra: dict) -> None:
 
 
 def handle_push(conn, payload: dict, *, project_id: str = DEMO_PROJECT_ID,
-                runtime: IsolatedRuntime | None = None, provision: bool = False) -> dict:
+                runtime: IsolatedRuntime | None = None, provision: bool = False,
+                agent_kind: str = "echo") -> dict:
     """Register a pending deployment from a push payload, advancing queued->building->ready."""
     sha = payload.get("after") or payload.get("head_commit", {}).get("id")
     if not sha:
@@ -89,7 +90,8 @@ def handle_push(conn, payload: dict, *, project_id: str = DEMO_PROJECT_ID,
     endpoint = None
     if provision and runtime is not None:
         handle = provision_preview(
-            runtime, RuntimeSpec(name=f"preview-{sha[:8]}", port=free_port(), version_tag=version_tag))
+            runtime, RuntimeSpec(name=f"preview-{sha[:8]}", port=free_port(),
+                                 version_tag=version_tag, kind=agent_kind))
         endpoint = handle.endpoint
         _ACTIVE_PREVIEWS[dep_id] = handle
         _merge_build_meta(conn, dep_id,

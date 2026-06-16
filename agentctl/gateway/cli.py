@@ -6,7 +6,10 @@ import asyncio
 
 
 def _cmd_agent(args) -> int:
-    from agentctl.agents.echo_agent import serve_forever
+    if getattr(args, "kind", "echo") == "support":
+        from agentctl.agents.support_agent import serve_forever
+    else:
+        from agentctl.agents.echo_agent import serve_forever
     asyncio.run(serve_forever(args.tag, args.port))
     return 0
 
@@ -41,7 +44,8 @@ def _cmd_ws(args) -> int:
 
 
 def add_gateway_parsers(sub) -> None:
-    ag = sub.add_parser("agent", help="run an echo agent backend (Vertical B)")
+    ag = sub.add_parser("agent", help="run an agent backend: echo | support (Vertical B)")
+    ag.add_argument("--kind", choices=["echo", "support"], default="echo")
     ag.add_argument("--tag", default="vA")
     ag.add_argument("--port", type=int, default=50051)
     ag.set_defaults(func=_cmd_agent)

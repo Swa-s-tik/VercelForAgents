@@ -178,6 +178,97 @@ def _persist_duckdb(db: str, sha: str, name: str, prefs: list, suite: str):
 
 
 # --------------------------------------------------------------------------- #
+# streaming proof through the Go data plane (for `streaming: true` agents)
+# --------------------------------------------------------------------------- #
+async def _stream_through_go(gateway_endpoint: str = "localhost:50050"):
+    import time as _t
+
+    import grpc
+
+    from agentctl.gateway import frames as F
+    from agentctl.gen import load
+    _pb, _dp, dpg, _cp, _cpg = load()
+    ch = grpc.aio.insecure_channel(gateway_endpoint)
+    stub = dpg.AgentStreamStub(ch)
+
+    async def gen():
+        yield F.client_text("support-demo", 1, 0, "where is my refund?")
+
+    t0 = _t.perf_counter()
+    chunks, tool = [], None
+    async for resp in stub.Converse(gen()):
+        if resp.HasField("text"):
+            chunks.append((_t.perf_counter() - t0, resp.text.content))
+        elif resp.HasField("tool_call"):
+            tool = resp.tool_call
+    await ch.close()
+    return chunks, tool
+
+
+def _streaming_proof(conn, dep_id, sha, name) -> dict:
+    """Make the preview the live route, launch the Go gateway, stream a turn through it (prove
+    incremental chunks + the issue_refund ToolCall), intercept the tool in the sandbox, and seal
+    the side-effect into the deployment checkpoint."""
+    import asyncio
+
+    from agentctl.gateway.go_launcher import binary_available, launch_go_gateway, stop
+    from agentctl.rollback import manifest as mf, routing
+    from agentctl.rollback.models import Pointer
+    from agentctl.runtime.sandbox_interceptor import SandboxInterceptor, Tool, ToolInvoker
+
+    conn.commit()
+    routing.flip_routing(conn, DEMO_PROJECT_ID, dep_id, reason=f"preview:{sha}", actor="push")
+    if not binary_available():
+        return {"skipped": "Go gateway not built (cd agentctl/gateway_core && make build)"}
+
+    gw = launch_go_gateway(port=50050, project_id=DEMO_PROJECT_ID)
+    try:
+        chunks, tool = asyncio.run(_stream_through_go())
+    finally:
+        stop(gw)
+
+    real_refunds: list = []
+    inv = ToolInvoker([Tool("issue_refund", side_effecting=True, klass="external",
+                            fn=lambda a: real_refunds.append(a))])
+    sres = SandboxInterceptor(inv, mode="preview").invoke("issue_refund", {"order_id": "A-2291"})
+
+    mf.seal_checkpoint(conn, dep_id, sha, [Pointer(
+        "side_effect", "irreversible", "stripe",
+        {"provider": "stripe", "tool": "issue_refund",
+         "idempotency_key": (tool.call_id if tool else "n/a"), "compensation": "reverse_refund"},
+        strategy="compensate_or_flag")])
+    man = mf.load_manifest(conn, dep_id)
+    side = next((pt for pt in (man.pointers if man else []) if pt.mutation_class == "side_effect"), None)
+    return {"chunks": chunks, "tool": tool, "sandbox": sres,
+            "real_refunds": len(real_refunds), "side_effect": side}
+
+
+def _streaming_panel(sp: dict) -> Panel:
+    if "skipped" in sp:
+        return Panel(f"[yellow]streaming proof skipped[/]: {sp['skipped']}",
+                     title="②′ live stream", box=box.ROUNDED, border_style="yellow")
+    chunks, tool = sp["chunks"], sp["tool"]
+    spread = (chunks[-1][0] - chunks[0][0]) if len(chunks) > 1 else 0.0
+    incremental = spread > 0.15
+    t = Table(box=box.SIMPLE, show_edge=False)
+    t.add_column("", style="dim"); t.add_column("")
+    t.add_row("text stream", f"{len(chunks)} TextDelta frames via the Go gateway")
+    t.add_row("arrival", f"first @ {chunks[0][0]*1000:.0f}ms · last @ {chunks[-1][0]*1000:.0f}ms · "
+                         f"spread {spread*1000:.0f}ms")
+    t.add_row("buffering", "[green]none — chunks streamed incrementally[/]" if incremental
+              else "[red]buffered into one block[/]")
+    t.add_row("tool call", f"[cyan]{tool.tool_name}[/] (side_effecting={tool.side_effecting})"
+              if tool else "—")
+    t.add_row("sandbox", f"intercepted → mocked (source={sp['sandbox'].source}); "
+                         f"real refunds issued: [green]{sp['real_refunds']}[/]")
+    s = sp["side_effect"]
+    t.add_row("rollback", f"issue_refund sealed as [yellow]{s.mutation_class}/{s.reversibility}[/] "
+              f"in checkpoint" if s else "—")
+    return Panel(t, title="②′ live stream through Go data plane + side-effect",
+                 box=box.ROUNDED, border_style="cyan")
+
+
+# --------------------------------------------------------------------------- #
 # the command
 # --------------------------------------------------------------------------- #
 def run_push(path: str = ".", simulate_regression: bool = False, samples: int | None = None,
@@ -193,6 +284,8 @@ def run_push(path: str = ".", simulate_regression: bool = False, samples: int | 
     tie_rate = float(ev.get("tie_rate", 0.08))
     n_samples = samples or int(ev.get("samples", 300))
     suite = str(ev.get("suite", "eval"))
+    streaming = str(meta.get("streaming", "")).lower() == "true"
+    agent_kind = str(meta.get("kind", "echo"))
 
     console.print()
     console.print(Panel.fit(f"[bold cyan]agentctl push[/]  •  [bold]{name}[/]  ·  model={meta.get('model')}",
@@ -224,7 +317,8 @@ def run_push(path: str = ".", simulate_regression: bool = False, samples: int | 
         with console.status("[cyan]provisioning isolated preview…[/]", spinner="dots"):
             res = handle_push(conn, make_push_payload(sha, ref="refs/heads/preview", repo=name,
                               changed=files, version_tag="preview"),
-                              provision=provision, runtime=runtime if provision else None)
+                              provision=provision, runtime=runtime if provision else None,
+                              agent_kind=agent_kind)
         dep_id, endpoint = res["deployment_id"], res.get("endpoint")
         ptbl = Table(box=box.SIMPLE, show_edge=False)
         ptbl.add_column("", style="dim"); ptbl.add_column("")
@@ -232,6 +326,14 @@ def run_push(path: str = ".", simulate_regression: bool = False, samples: int | 
         ptbl.add_row("lifecycle", " → ".join(f"[green]{s}[/]" for s in res["sequence"]))
         ptbl.add_row("endpoint", f"[cyan]{endpoint or '(not provisioned)'}[/]")
         console.print(Panel(ptbl, title="② preview", box=box.ROUNDED, border_style="grey50"))
+
+        # ── 2′. streaming proof through the Go data plane (streaming agents) ──
+        if streaming and provision and endpoint:
+            try:
+                console.print(_streaming_panel(_streaming_proof(conn, dep_id, sha, name)))
+            except Exception as e:
+                console.print(Panel(f"[yellow]streaming proof error[/]: {e}",
+                                    title="②′ live stream", box=box.ROUNDED, border_style="yellow"))
 
         # ── 3. live eval-gating ──────────────────────────────────────────
         final, used = _run_live_eval(name, win_rate, tie_rate, n_samples)

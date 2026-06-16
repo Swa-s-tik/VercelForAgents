@@ -1,0 +1,13 @@
+# support_agent — a streaming, tool-calling customer support agent
+name: support-agent
+model: claude-opus-4-8
+task: customer-support
+entrypoint: agent.py
+kind: support          # provision the streaming SupportAgent backend
+streaming: true        # push runs the Go-gateway streaming proof (chunked TextDelta + ToolCall)
+tools: issue_refund
+eval:
+  suite: support-quality
+  samples: 300
+  win_rate: 0.61       # simulated quality vs baseline (>0.50 -> MERGE)
+  tie_rate: 0.08

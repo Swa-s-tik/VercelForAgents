@@ -28,6 +28,7 @@ class RuntimeSpec:
     name: str
     port: int = 0
     version_tag: str = "vA"
+    kind: str = "echo"                    # agent kind for ProcessRuntime: echo | support
     image: str | None = None              # DockerRuntime only
     cmd: list[str] = field(default_factory=list)
     env: dict = field(default_factory=dict)
@@ -86,7 +87,7 @@ class ProcessRuntime:
     def provision(self, spec: RuntimeSpec) -> RuntimeHandle:
         port = spec.port or free_port()
         cmd = [sys.executable, "-m", "agentctl.cli", "agent",
-               "--tag", spec.version_tag, "--port", str(port)]
+               "--kind", spec.kind, "--tag", spec.version_tag, "--port", str(port)]
         proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return RuntimeHandle(id=f"proc-{proc.pid}", kind="process", port=port,
                              endpoint=f"localhost:{port}", ref=proc,
