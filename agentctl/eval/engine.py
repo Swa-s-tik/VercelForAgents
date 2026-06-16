@@ -92,6 +92,51 @@ def sprt_evaluate(prefs: Iterable[str], *, p0: float = 0.45, p1: float = 0.55,
                             llr, float("nan"), float("nan"), reason)
 
 
+def sprt_stream(prefs: Iterable[str], *, p0: float = 0.45, p1: float = 0.55,
+                alpha: float = 0.05, beta: float = 0.05, nim: float = 0.50):
+    """Generator for LIVE display: yield an incremental SPRT + running Wilson CI state after
+    EVERY sample. The last yielded dict carries the terminal ``decision``
+    (ALLOW / BLOCK / INCONCLUSIVE). Used by the CLI to animate the gate in real time."""
+    from agentctl.eval.gate import wilson_interval
+
+    upper = math.log((1 - beta) / alpha)
+    lower = math.log(beta / (1 - alpha))
+    lr_win = math.log(p1 / p0)
+    lr_loss = math.log((1 - p1) / (1 - p0))
+
+    llr = 0.0
+    wins = losses = ties = n = decisive = 0
+    lo, hi, k = 0.0, 1.0, 0.0
+    for pref in prefs:
+        n += 1
+        if pref == "WIN":
+            wins += 1; decisive += 1; llr += lr_win
+        elif pref == "LOSS":
+            losses += 1; decisive += 1; llr += lr_loss
+        else:
+            ties += 1
+        k = wins + 0.5 * ties
+        lo, hi = wilson_interval(k, n, alpha)
+        decision = "CONTINUE"
+        if decisive:
+            if llr >= upper:
+                decision = "ALLOW"
+            elif llr <= lower:
+                decision = "BLOCK"
+        yield {"i": n, "n": n, "wins": wins, "losses": losses, "ties": ties,
+               "decisive": decisive, "win_rate": (k / n if n else 0.0),
+               "wilson_low": lo, "wilson_high": hi, "llr": llr,
+               "upper": upper, "lower": lower, "decision": decision, "margin": nim}
+        if decision != "CONTINUE":
+            return
+    # horizon exhausted without an SPRT decision -> fall back to Wilson vs the margin
+    final = "ALLOW" if lo >= nim else ("BLOCK" if hi < nim else "INCONCLUSIVE")
+    yield {"i": n, "n": n, "wins": wins, "losses": losses, "ties": ties,
+           "decisive": decisive, "win_rate": (k / n if n else 0.0),
+           "wilson_low": lo, "wilson_high": hi, "llr": llr,
+           "upper": upper, "lower": lower, "decision": final, "margin": nim}
+
+
 # --------------------------------------------------------------------------- #
 # Anytime-valid confidence sequence (Hoeffding, time-uniform)
 # --------------------------------------------------------------------------- #

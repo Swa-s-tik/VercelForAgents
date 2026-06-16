@@ -1,13 +1,17 @@
 """Unified `agentctl` command line. Subcommands are added per vertical:
 
+  push          — package an agent dir -> preview -> live eval-gate -> merge/block (Phase 3)
   eval ingest   — ingest paired candidate/baseline eval records into DuckDB   (Vertical A)
   gate          — compute the statistical merge gate for a run or a whole PR  (Vertical A)
   rollback      — apply schema / seed / 1-click rollback / show-audit         (Vertical C)
   gateway       — run the gRPC streaming gateway                             (Vertical B)
   agent         — run an echo agent backend                                  (Vertical B)
+  webhook       — git webhook emulator                                       (Phase 2)
 
 Handlers lazy-import their vertical so an unrelated subcommand never pays for
-(or fails on) another vertical's dependencies.
+(or fails on) another vertical's dependencies. The production-grade `push` UX lives in
+``agentctl/cli/main.py`` (typer + rich); this package keeps the argparse entry so the
+``agentctl`` console script and ``python -m agentctl.cli`` continue to work unchanged.
 """
 from __future__ import annotations
 
@@ -16,6 +20,27 @@ import os
 import sys
 
 DEFAULT_DB = os.environ.get("AGENTCTL_DUCKDB", ".agentctl/eval.duckdb")
+
+
+# --------------------------------------------------------------------------- #
+# Phase 3 — push (developer experience)
+# --------------------------------------------------------------------------- #
+def _cmd_push(args) -> int:
+    from agentctl.cli.main import run_push
+    return run_push(path=args.path, simulate_regression=args.simulate_regression,
+                    samples=args.samples, db=args.db, provision=not args.no_provision)
+
+
+def _add_push_parser(sub) -> None:
+    p = sub.add_parser("push", help="package + deploy an agent: preview -> eval-gate -> merge/block")
+    p.add_argument("path", nargs="?", default=".", help="agent directory (contains prompt.yaml)")
+    p.add_argument("--simulate-regression", action="store_true",
+                   help="simulate a mathematically inferior agent (-> PR BLOCKED)")
+    p.add_argument("--samples", type=int, default=None, help="override eval sample count")
+    p.add_argument("--no-provision", action="store_true",
+                   help="skip spinning up the isolated preview container")
+    p.add_argument("--db", default=DEFAULT_DB)
+    p.set_defaults(func=_cmd_push)
 
 
 # --------------------------------------------------------------------------- #
@@ -93,23 +118,16 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="agentctl",
                                 description="Unified GitOps control plane for AI agents.")
     sub = p.add_subparsers(dest="cmd", required=True)
+    _add_push_parser(sub)
     _add_eval_parsers(sub)
-    # Vertical C and B parsers are registered here as they are built:
-    try:
-        from agentctl.rollback.cli import add_rollback_parser
-        add_rollback_parser(sub)
-    except Exception:
-        pass
-    try:
-        from agentctl.gateway.cli import add_gateway_parsers
-        add_gateway_parsers(sub)
-    except Exception:
-        pass
-    try:
-        from agentctl.control.cli import add_webhook_parsers
-        add_webhook_parsers(sub)
-    except Exception:
-        pass
+    for mod, fn in (("agentctl.rollback.cli", "add_rollback_parser"),
+                    ("agentctl.gateway.cli", "add_gateway_parsers"),
+                    ("agentctl.control.cli", "add_webhook_parsers")):
+        try:
+            __import__(mod, fromlist=[fn])
+            getattr(sys.modules[mod], fn)(sub)
+        except Exception:
+            pass
     return p
 
 
