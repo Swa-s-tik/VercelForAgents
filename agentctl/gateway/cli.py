@@ -12,9 +12,26 @@ def _cmd_agent(args) -> int:
 
 
 def _cmd_gateway(args) -> int:
-    from agentctl.gateway.proxy import serve_forever
-    asyncio.run(serve_forever(args.port))
-    return 0
+    if args.engine == "python":
+        from agentctl.gateway.proxy import serve_forever
+        asyncio.run(serve_forever(args.port))
+        return 0
+    # default: the compiled Go data plane (Postgres-routed; the cutover)
+    import os
+    import subprocess
+    import sys
+    from agentctl.config import DEMO_PROJECT_ID, PG_DSN
+    from agentctl.gateway.go_launcher import GATEWAY_BIN, binary_available
+    if not binary_available():
+        print(f"Go gateway not built: {GATEWAY_BIN}\n"
+              f"  build it:  cd agentctl/gateway_core && make build\n"
+              f"  or use:    agentctl gateway --engine python", file=sys.stderr)
+        return 1
+    env = dict(os.environ)
+    env.update({"AGENTCTL_PG_DSN": PG_DSN, "AGENTCTL_PROJECT_ID": DEMO_PROJECT_ID,
+                "AGENTCTL_GW_PORT": str(args.port)})
+    print(f"agentctl gateway: launching Go data plane on :{args.port} (Postgres-routed)")
+    return subprocess.call([str(GATEWAY_BIN)], env=env)
 
 
 def _cmd_ws(args) -> int:
@@ -29,8 +46,10 @@ def add_gateway_parsers(sub) -> None:
     ag.add_argument("--port", type=int, default=50051)
     ag.set_defaults(func=_cmd_agent)
 
-    gw = sub.add_parser("gateway", help="run the gRPC streaming gateway (Vertical B)")
+    gw = sub.add_parser("gateway", help="run the streaming gateway (default: compiled Go data plane)")
     gw.add_argument("--port", type=int, default=50050)
+    gw.add_argument("--engine", choices=["go", "python"], default="go",
+                    help="data-plane engine (default: Go gateway_core; 'python' = grpc.aio proxy)")
     gw.set_defaults(func=_cmd_gateway)
 
     ws = sub.add_parser("ws-bridge", help="run the WebSocket->gRPC edge bridge (Vertical B)")

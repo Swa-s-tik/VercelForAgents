@@ -5,6 +5,7 @@ module github.com/agentctl/gateway_core
 go 1.23
 
 require (
+	github.com/lib/pq v1.12.3
 	google.golang.org/grpc v1.64.0
 	google.golang.org/protobuf v1.36.11
 )

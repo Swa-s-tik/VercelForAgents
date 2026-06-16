@@ -17,13 +17,13 @@ import (
 // path: forward the opaque Frame, touching only the routing header (fields 1-4).
 type Server struct {
 	acpv1.UnimplementedAgentStreamServer
-	rt    *RouteTable
-	mu    sync.Mutex
-	conns map[string]*grpc.ClientConn // one pooled channel per backend endpoint
+	resolver Resolver
+	mu       sync.Mutex
+	conns    map[string]*grpc.ClientConn // one pooled channel per backend endpoint
 }
 
-func NewServer(rt *RouteTable) *Server {
-	return &Server{rt: rt, conns: map[string]*grpc.ClientConn{}}
+func NewServer(r Resolver) *Server {
+	return &Server{resolver: r, conns: map[string]*grpc.ClientConn{}}
 }
 
 func (s *Server) client(endpoint string) (acpv1.AgentStreamClient, error) {
@@ -51,7 +51,7 @@ func (s *Server) Converse(stream acpv1.AgentStream_ConverseServer) error {
 	if err != nil {
 		return err
 	}
-	primary, shadows := s.rt.Resolve(first.GetSessionId())
+	primary, shadows := s.resolver.Resolve(first.GetSessionId())
 
 	pc, err := s.client(primary.Endpoint)
 	if err != nil {

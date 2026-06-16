@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net"
+	"os"
 
 	"google.golang.org/grpc"
 
@@ -13,16 +14,36 @@ import (
 const mb = 1 << 20
 
 func main() {
-	lis, err := net.Listen("tcp", ":50050")
+	port := os.Getenv("AGENTCTL_GW_PORT")
+	if port == "" {
+		port = "50050"
+	}
+	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		log.Fatalf("listen: %v", err)
 	}
-	srv := grpc.NewServer(
-		grpc.MaxRecvMsgSize(64*mb),
-		grpc.MaxSendMsgSize(64*mb),
-	)
-	acpv1.RegisterAgentStreamServer(srv, gateway.NewServer(gateway.DefaultRouteTable()))
-	log.Println("gateway_core (Go data plane) listening on :50050")
+
+	// Cutover: routing comes from Postgres (LISTEN/NOTIFY) when AGENTCTL_PG_DSN is set,
+	// so Vertical C's flip transactions update THIS live Go gateway. Falls back to a static
+	// table when unset (offline / unit use).
+	var resolver gateway.Resolver
+	if dsn := os.Getenv("AGENTCTL_PG_DSN"); dsn != "" {
+		project := os.Getenv("AGENTCTL_PROJECT_ID")
+		pg, err := gateway.NewPgRouteTable(dsn, project)
+		if err != nil {
+			log.Fatalf("pg route table: %v", err)
+		}
+		pg.Watch()
+		resolver = pg
+		log.Printf("routing: Postgres LISTEN/NOTIFY (project=%s)", project)
+	} else {
+		resolver = gateway.DefaultRouteTable()
+		log.Printf("routing: static default table")
+	}
+
+	srv := grpc.NewServer(grpc.MaxRecvMsgSize(64*mb), grpc.MaxSendMsgSize(64*mb))
+	acpv1.RegisterAgentStreamServer(srv, gateway.NewServer(resolver))
+	log.Printf("gateway_core (Go data plane) listening on :%s", port)
 	if err := srv.Serve(lis); err != nil {
 		log.Fatalf("serve: %v", err)
 	}
