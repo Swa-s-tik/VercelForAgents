@@ -17,8 +17,9 @@ proto:
 tidy:
 	go mod tidy
 
-build: proto tidy
-	go build -o bin/gateway ./cmd/gateway
+# gen/ is vendored, so `make build` just compiles; run `make proto` to regenerate the stubs.
+build:
+	go build -trimpath -o bin/gateway ./cmd/gateway
 
 run: build
 	./bin/gateway

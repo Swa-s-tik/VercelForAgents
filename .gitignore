@@ -7,8 +7,5 @@ __pycache__/
 *.egg-info/
 build/
 dist/
-# generated gRPC stubs (regenerated from proto/ via grpc_tools.protoc)
-agentctl/gen/*_pb2.py
-agentctl/gen/*_pb2_grpc.py
-agentctl/gen/*_pb2.pyi
+# generated gRPC stubs are VENDORED (committed) so a fresh clone / Docker build needs no protoc.
 .pytest_cache/

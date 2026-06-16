@@ -1,74 +1,135 @@
-# agentctl
+<div align="center">
 
-A unified, open-source **GitOps control plane for AI agents** — eval-gating, a streaming
-gRPC gateway, and stateful rollback in one cohesive system instead of 4–5 stitched-together
-SaaS products. See [docs/ARCHITECTURE_PRD.md](docs/ARCHITECTURE_PRD.md) for the full design.
+# agentctl — Vercel for AI Agents
 
-> Prototype status: a runnable skeleton proving the three hardest concepts (clearly-marked
-> stubs elsewhere). Python-first; the gRPC data plane is designed to be reimplemented in
-> Go/Rust behind a frozen proto contract.
+**Ship an agent with one command: `agentctl push`.**
+Preview deploys, statistical eval-gating, a streaming gRPC gateway, and 1-click stateful
+rollback — one open-source control plane instead of five stitched-together SaaS products.
 
-## 5-minute local setup
+`Python control plane` · `Go data plane` · `Postgres + DuckDB` · `Apache-2.0`
+
+</div>
+
+---
+
+## Why this exists
+
+Shipping an AI agent today means gluing together a different product for each concern:
+one for **evals**, one for the **proxy/router**, one for **observability**, one for
+**deploys/rollbacks**. None of them share a data model, so the agent lifecycle — the thing
+you actually care about — is never treated as the single distributed system it is.
+
+`agentctl` is that system. A change to a prompt, tool schema, or execution graph flows through
+**one** integrated path:
+
+> **push → isolated preview → statistical eval-gate → canary/shadow rollout → 1-click stateful rollback**
+
+And it borrows the thing that made Vercel great for frontends: a deploy is **boring, instant,
+and reversible** — except an agent deploy also has to reason about *non-deterministic quality*
+(is the new version actually better?) and *external side-effects* (it sent emails, wrote vectors,
+charged cards — those don't roll back when the code does). agentctl handles both.
+
+## Architecture
+
+```
+        developer                         browser / SDK client
+       │ agentctl push                   │ gRPC bidi · WebSocket edge
+       ▼                                 ▼
+ ┌───────────────┐                ┌──────────────────────────────────────────┐
+ │ CLI (typer)   │                │      GO DATA PLANE  (gateway_core)         │
+ │  pack + eval  │                │  sticky canary · shadow · token streaming  │
+ └──────┬────────┘                │  routing ◀── Postgres LISTEN/NOTIFY ──┐    │
+        │ webhook                 └───────────────┬───────────────────────┼────┘
+        ▼                                         ▼ proxies Frame envelope │
+ ┌──────────────────────────── CONTROL PLANE (Python) ────────────────────┼──┐
+ │  webhook → register deployment → provision ISOLATED PREVIEW agent       │  │
+ │  eval-gate: SPRT + Wilson CI  ·  rollback: atomic flip + checkpoints     │  │
+ └───────────────┬──────────────────────────────────────────────────┬─────┘  │
+                 ▼                                                    ▼        │
+        ┌────────────────────┐                          ┌──────────────────┐  │
+        │ Postgres (SoR)      │  deployments · routing   │ DuckDB (local)    │  │
+        │ checkpoints · audit │  ◀── flip fires NOTIFY ──┘ eval traces       │  │
+        └────────────────────┘                          └──────────────────┘  │
+                 │ OTel spans (env-toggle)                                     │
+                 ▼                                                             │
+        ClickHouse (prod telemetry warehouse) ◀──────────────────────────────┘
+```
+
+- **Frozen `Frame` envelope** (`proto/`) carries text deltas, binary (vision/audio), tool calls,
+  interrupts, and approvals — so the Python reference proxy and the Go data plane are wire-identical.
+- **Postgres** is the ACID system-of-record (coordinates + proof, never bulk state). A routing
+  flip fires `pg_notify`, and the **live Go gateway re-routes instantly** — zero dropped streams.
+- **DuckDB** is the embedded local OLAP store for eval traces (zero external deps).
+
+## 5-minute quickstart
 
 ```bash
-pip install -e .                                   # scipy/numpy/fastapi already present
-docker compose -f deploy/docker-compose.yml up -d postgres
-python -m grpc_tools.protoc -I proto \
-  --python_out=agentctl/gen --grpc_python_out=agentctl/gen proto/*.proto   # regenerate stubs
-python demo/make_fixtures.py                       # generate eval fixtures
-./demo/run_all.sh                                  # run all three verticals end-to-end
+git clone https://github.com/Swa-s-tik/VercelForAgents && cd VercelForAgents
+
+pip install -e .                                              # control plane + CLI
+docker compose -f deploy/docker-compose.yml up -d postgres    # system-of-record
+(cd agentctl/gateway_core && make build)                      # compile the Go data plane
+
+cd examples/support_agent && agentctl push
 ```
 
-## The three verticals
+That single `agentctl push` runs the **entire pipeline** and proves it on screen:
 
-**A · Eval-gating** — a statistically sound, non-inferiority merge gate (Wilson CI drives
-BLOCK/ALLOW/INCONCLUSIVE/INSUFFICIENT_DATA; exact McNemar + Beta-Binomial reported; BH-FDR
-across suites). Corrects the brief's incoherent `win-rate<52% AND p>0.05` rule.
+```
+① pack       README.md, agent.py, prompt.yaml → commit 7ce7a54d3b08
+② preview    deployment #3 · queued → building → ready · isolated agent on :57201
+②′ live stream through Go data plane + side-effect
+   text stream  21 TextDelta frames via the Go gateway
+   arrival      first @ 33ms · last @ 639ms · spread 606ms
+   buffering    none — chunks streamed incrementally
+   tool call    issue_refund (side_effecting=True)
+   sandbox      intercepted → mocked; real refunds issued: 0
+   rollback     issue_refund sealed as side_effect/irreversible in checkpoint
+   eval-gate    SPRT ALLOW @ 41/300 samples · Wilson95 [0.530, 0.804]
+③ ✅ PR MERGED → promoted 100% live · https://support-agent-7ce7a54d.agents.live
+```
+
+Try a regression — the gate blocks it:
 
 ```bash
-agentctl eval ingest --run demo/fixtures/candidate.jsonl --baseline demo/fixtures/main.jsonl --commit good --pr 100
-agentctl gate --pr 100        # -> ALLOW (exit 0)
-agentctl eval ingest --run demo/fixtures/candidate_regression.jsonl --baseline demo/fixtures/main.jsonl --commit regr --pr 101
-agentctl gate --pr 101        # -> BLOCK (exit 1)
+agentctl push --simulate-regression     # ⛔ PR BLOCKED (SPRT crosses the lower threshold)
 ```
 
-**B · Streaming gateway** — gRPC bidi reverse proxy with per-session sticky canary, shadow
-mirroring (drop-on-full, discarded), and a WebSocket edge with mid-stream interrupts.
+### Or run the whole stack in one command
 
 ```bash
-python demo/gateway_demo.py   # 90/10 canary + shadow + gRPC interrupt
-python demo/ws_demo.py        # WebSocket -> gRPC interrupt round-trip
-# or run servers manually: agentctl agent --tag vA --port 50051 ; agentctl gateway --port 50050
+docker compose up --build        # Postgres + Go gateway + Python control plane
 ```
 
-**C · Stateful rollback** — Postgres system-of-record; only the routing flip is ACID
-(partial-unique one-live-table + NOTIFY); state realignment is idempotent; reversibility is
-schema-enforced; non-reversible state is surfaced, never faked.
+## What's inside
 
-```bash
-agentctl rollback schema && agentctl rollback seed
-agentctl rollback run aaaa1111aaaa   # flip to A + restore reversible state + flag the rest
-agentctl rollback audit
-```
+| Concern | How agentctl does it |
+|---|---|
+| **Eval-gating** | A **non-inferiority gate** on a paired win/loss/tie signal — Wilson score interval decides BLOCK/ALLOW; **Wald SPRT** stops early (blocks an inferior agent after ~80 of 1000 samples). Fixes the naïve "win-rate < 52% AND p > 0.05" rule, which is statistically backwards. |
+| **Streaming gateway** | A `grpc.aio` reference proxy **and** a compiled **Go data plane** behind a frozen proto: per-session sticky canary, shadow mirroring (drop-on-full), token streaming, WebSocket edge with mid-stream interrupts. ~580 MB/s on 1 MB frames. |
+| **Stateful rollback** | Only the routing flip is a hard ACID transaction (atomic, `LISTEN/NOTIFY`); state realignment is per-pointer idempotent. Reversibility is **schema-enforced** — the system can't claim a payment is reversible. |
+| **Developer UX** | `agentctl push` — pack → preview → live eval → merge/block, with a rich live terminal. |
 
-## Tests
-
-```bash
-python tests/test_gate.py        # 14 gate-statistics tests
-python tests/test_router.py      # canary distribution + stickiness
-python tests/test_rollback.py    # atomic flip + restore + audit (needs Postgres)
-```
-
-## Layout
+## Project layout
 
 ```
-proto/                 frozen Frame envelope + AgentStream/ControlPlane services
-agentctl/eval/         non-inferiority gate, ingest, judge, runner (Vertical A)
-agentctl/storage/      DuckDB store + schema (Vertical A)
-agentctl/gateway/      router, proxy, shadow, route cache (Vertical B)
-agentctl/edge/         WebSocket->gRPC bridge (Vertical B)
-agentctl/rollback/     Postgres schema, routing flip, rollback orchestrator, stores (Vertical C)
-demo/  tests/  docs/   demos, tests, the architecture PRD
+proto/                  frozen Frame envelope + AgentStream / ControlPlane services
+agentctl/cli/           the typer CLI — `agentctl push` (cli/main.py)
+agentctl/eval/          non-inferiority gate, sequential SPRT engine, judges
+agentctl/gateway/       Python proxy, router, PG route cache, Go launcher
+agentctl/gateway_core/  the compiled Go data plane (grpc-go, Postgres-routed)
+agentctl/rollback/      Postgres schema, atomic flip, checkpoints, state stores
+agentctl/control/       git webhook emulator        agentctl/runtime/  isolated previews + tool sandbox
+examples/support_agent/ the flagship streaming, tool-calling example
+docs/ARCHITECTURE_PRD.md  full design                tests/  demo/
 ```
 
-License: Apache-2.0.
+## Status
+
+The three verticals, the Go cutover, the streaming demo, and the developer CLI are runnable and
+tested. Production hardening (multi-tenant RBAC, managed vector/memory adapters, ClickHouse
+dashboards, a golden-wire proto conformance suite) is the road to 1.0 — see `docs/ARCHITECTURE_PRD.md`.
+
+## License
+
+Apache-2.0.

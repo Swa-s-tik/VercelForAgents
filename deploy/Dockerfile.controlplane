@@ -1,0 +1,9 @@
+# Python control plane (CLI, webhook, eval-gate, rollback). Vendored gen stubs -> no protoc.
+FROM python:3.13-slim
+WORKDIR /app
+COPY pyproject.toml requirements.txt README.md ./
+COPY agentctl/ ./agentctl/
+RUN pip install --no-cache-dir -e .
+EXPOSE 8088
+# default: the git webhook listener; override `command:` to run other control-plane jobs.
+CMD ["uvicorn", "agentctl.control.webhook:app", "--host", "0.0.0.0", "--port", "8088"]

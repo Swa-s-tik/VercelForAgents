@@ -1,0 +1,13 @@
+# Go data-plane gateway (gateway_core). Generated stubs are vendored, so only Go is needed.
+FROM golang:1.23-bookworm AS build
+WORKDIR /src
+COPY agentctl/gateway_core/ ./
+ENV GOFLAGS=-mod=mod GOSUMDB=off
+RUN go build -trimpath -o /out/gateway ./cmd/gateway
+
+FROM debian:bookworm-slim
+RUN useradd -m app
+COPY --from=build /out/gateway /usr/local/bin/gateway
+USER app
+EXPOSE 50050
+ENTRYPOINT ["/usr/local/bin/gateway"]
