@@ -16,26 +16,64 @@ def _caller_key(args) -> str | None:
 
 
 def _cmd_create_key(args) -> int:
-    from agentctl.auth.keys import generate_key
+    from agentctl.auth.keys import create_api_key
+    from agentctl.auth.users import bind_role, create_user, org_for_project, user_by_email
     from agentctl.common.db import connect
     conn = connect()
     try:
         principal = resolve_principal(conn, _caller_key(args)).require("owner")
-        secret, prefix, key_hash = generate_key()
-        with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO controlplane.api_keys (project_id,name,key_prefix,key_hash,role) "
-                "VALUES (%s,%s,%s,%s,%s) RETURNING id",
-                [principal.project_id, args.name, prefix, key_hash, args.role])
-            kid = cur.fetchone()["id"]
+        user_id = None
+        if args.user:
+            org = org_for_project(conn, principal.project_id)
+            user_id = user_by_email(conn, org, args.user) or create_user(conn, org, args.user)
+            bind_role(conn, user_id, principal.project_id, args.role)  # the key's effective role
+        secret, kid = create_api_key(conn, principal.project_id, args.name, args.role, user_id)
         conn.commit()
     except AuthError as e:
         print(f"denied: {e}", file=sys.stderr)
         return 1
     finally:
         conn.close()
-    print(f"created key (id={kid}, role={args.role}, project={principal.project_id})")
+    who = f", user={args.user}" if args.user else ""
+    print(f"created key (id={kid}, role={args.role}, project={principal.project_id}{who})")
     print(f"  secret (shown once, store it now): {secret}")
+    return 0
+
+
+def _cmd_create_user(args) -> int:
+    from agentctl.auth.users import bind_role, create_user, org_for_project
+    from agentctl.common.db import connect
+    conn = connect()
+    try:
+        principal = resolve_principal(conn, _caller_key(args)).require("owner")
+        org = org_for_project(conn, principal.project_id)
+        uid = create_user(conn, org, args.email)
+        bind_role(conn, uid, principal.project_id, args.role)
+        conn.commit()
+    except AuthError as e:
+        print(f"denied: {e}", file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
+    print(f"user {args.email} (id={uid}) bound as {args.role} on project {principal.project_id}")
+    return 0
+
+
+def _cmd_list_users(args) -> int:
+    from agentctl.auth.users import list_users
+    from agentctl.common.db import connect
+    conn = connect()
+    try:
+        principal = resolve_principal(conn, _caller_key(args)).require("viewer")
+        rows = list_users(conn, principal.project_id)
+    except AuthError as e:
+        print(f"denied: {e}", file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
+    print(f"users on project {principal.project_id}:")
+    for r in rows:
+        print(f"  {r['email']:32s} {r['role'] or '(no binding)'}")
     return 0
 
 
@@ -86,9 +124,13 @@ def add_auth_parsers(sub) -> None:
     a = sub.add_parser("auth", help="API key management (Workstream 2 / RBAC)")
     asub = a.add_subparsers(dest="authcmd", required=True)
 
+    _ROLES = ["viewer", "developer", "admin", "owner"]
+
     ck = asub.add_parser("create-key", help="create an API key (owner only)")
     ck.add_argument("--name", default="key")
-    ck.add_argument("--role", default="developer", choices=["viewer", "developer", "admin", "owner"])
+    ck.add_argument("--role", default="developer", choices=_ROLES)
+    ck.add_argument("--user", default=None, help="bind the key to a user (email); role becomes the "
+                                                 "user's binding on this project")
     ck.add_argument("--api-key", default=None, help="caller key (else AGENTCTL_API_KEY / bootstrap)")
     ck.set_defaults(func=_cmd_create_key)
 
@@ -100,3 +142,13 @@ def add_auth_parsers(sub) -> None:
     rk.add_argument("prefix", help="the key_prefix shown by list-keys")
     rk.add_argument("--api-key", default=None)
     rk.set_defaults(func=_cmd_revoke_key)
+
+    cu = asub.add_parser("create-user", help="create/bind a user with a role on your project (owner)")
+    cu.add_argument("--email", required=True)
+    cu.add_argument("--role", default="developer", choices=_ROLES)
+    cu.add_argument("--api-key", default=None)
+    cu.set_defaults(func=_cmd_create_user)
+
+    lu = asub.add_parser("list-users", help="list users + their role on your project (viewer+)")
+    lu.add_argument("--api-key", default=None)
+    lu.set_defaults(func=_cmd_list_users)

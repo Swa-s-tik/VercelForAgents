@@ -168,9 +168,30 @@ CREATE TABLE projects (
   UNIQUE (org_id, slug)
 );
 
+-- users + role bindings (post-1.0): an org member, and the role they hold on a project. A key may
+-- belong to a user, in which case its EFFECTIVE role is the user's binding on the key's project
+-- (central management), falling back to the key's own role for standalone keys (the 1.0 model).
+CREATE TABLE users (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id     UUID NOT NULL REFERENCES orgs(id),
+  email      TEXT NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (org_id, email)
+);
+
+CREATE TABLE role_bindings (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  project_id UUID NOT NULL REFERENCES projects(id),
+  role       rbac_role NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (user_id, project_id)
+);
+
 CREATE TABLE api_keys (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID NOT NULL REFERENCES projects(id),
+  user_id    UUID REFERENCES users(id) ON DELETE SET NULL,  -- NULL = standalone key (1.0 model)
   name       TEXT NOT NULL,
   key_prefix TEXT NOT NULL,                 -- shown in UIs/logs; never the secret
   key_hash   TEXT NOT NULL,                 -- sha256(secret); the secret is never stored

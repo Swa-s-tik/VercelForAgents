@@ -7,6 +7,12 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Users + role bindings** (post-1.0). `users` and `role_bindings` tables + `api_keys.user_id`
+  extend RBAC beyond role-per-key: a key may belong to a user, and its effective role is the user's
+  binding on the project (`COALESCE(binding, key.role)`), resolved identically by the Python
+  resolver and the Go gateway. Standalone keys are unchanged. New `agentctl auth create-user /
+  list-users` + `create-key --user`; verified on both planes (the Go gateway honors a viewer binding
+  over an owner key column). New: `agentctl/auth/users.py`, schema tables, tests.
 - **Control-plane + Health proto conformance** (post-1.0). Extends the golden-wire suite beyond the
   `Frame` to the `ControlPlane` service messages (RouteTable/Backend/ShadowPolicy, ResolveRoute,
   Watch, TelemetryBatch/Event/Ack) and Health — exercising nested messages, repeated fields, a

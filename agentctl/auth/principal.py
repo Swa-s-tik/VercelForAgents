@@ -25,6 +25,8 @@ class Principal:
     role: str
     key_id: str | None = None
     name: str = "bootstrap"
+    user_id: str | None = None   # set when the key belongs to a user
+    email: str | None = None     # the user's identity (for audit), when user-bound
 
     @property
     def rank(self) -> int:
@@ -48,12 +50,21 @@ def resolve_principal(conn, api_key: str | None) -> Principal:
         return BOOTSTRAP_PRINCIPAL
     from agentctl.auth.keys import hash_key
     with conn.cursor() as cur:
+        # effective role = the user's binding on this project (if the key is user-bound), else the
+        # key's own role. Standalone keys (user_id NULL) keep the 1.0 role-per-key behavior.
         cur.execute(
-            "SELECT id, project_id, role, name FROM controlplane.api_keys "
-            "WHERE key_hash=%s AND revoked_at IS NULL",
+            "SELECT k.id, k.project_id, COALESCE(rb.role, k.role) AS role, k.name, "
+            "       k.user_id, u.email "
+            "FROM controlplane.api_keys k "
+            "LEFT JOIN controlplane.role_bindings rb "
+            "  ON rb.user_id = k.user_id AND rb.project_id = k.project_id "
+            "LEFT JOIN controlplane.users u ON u.id = k.user_id "
+            "WHERE k.key_hash=%s AND k.revoked_at IS NULL",
             [hash_key(api_key)])
         row = cur.fetchone()
     if not row:
         raise AuthError("invalid or revoked API key")
     return Principal(project_id=str(row["project_id"]), role=str(row["role"]),
-                     key_id=str(row["id"]), name=row["name"] or "")
+                     key_id=str(row["id"]), name=row["name"] or "",
+                     user_id=str(row["user_id"]) if row["user_id"] else None,
+                     email=row["email"])

@@ -20,9 +20,8 @@ API keys with a **role per key** (no external IdP). Three tables appended to
   of the secret is stored; `key_prefix` (first 12 chars) is safe to display; `role ∈
   {viewer, developer, admin, owner}`.
 
-`users` / `role_bindings` are intentionally **not** in 1.0 — role-per-key is the right altitude for a
-key-authenticated control plane and avoids join overhead on the auth hot path. They're a documented
-post-1.0 extension.
+In 1.0, role lived only on the key. **Post-1.0 this was extended with `users` + `role_bindings`**
+(see "Users & role bindings" below) — but standalone keys still behave exactly as in 1.0.
 
 ### Permission matrix
 
@@ -82,9 +81,25 @@ agentctl push                                   # zero-config: principal=bootstr
 AGENTCTL_REQUIRE_KEY=1 agentctl push            # now requires a valid key
 ```
 
+## Users & role bindings (post-1.0)
+
+Two tables extend the model beyond role-per-key without breaking it:
+
+- `users(id, org_id, email)` — an org member.
+- `role_bindings(user_id, project_id, role)` — the role a user holds on a project.
+- `api_keys.user_id` — a key may belong to a user (NULL = standalone, the 1.0 model).
+
+**Effective role** is computed in one query on both planes (Python `resolve_principal` and the Go
+gateway use the identical shape): `COALESCE(role_bindings.role, api_keys.role)` joined on the key's
+`user_id` + project. So a user-bound key's role is managed centrally via its binding (re-binding a
+user instantly changes all their keys' effective role), while standalone keys keep their own role.
+A user-bound `Principal` also carries the user's `email` for audit. Managed via
+`agentctl auth create-user` / `list-users` and `create-key --user <email>`. Verified end-to-end:
+the Go gateway denies a key whose own column says `owner` but whose binding says `viewer` at a
+`developer` floor (`tests/test_go_gateway_auth.py`).
+
 ## Boundaries / post-1.0
 
-- `users` + `role_bindings` (1.0 = role-per-key).
 - Hard FK `deployments.project_id → projects.id`.
 - Full key validation on the Go gateway (1.0 presence-checks only).
 - Per-project key scoping for cross-project admin (1.0 keys are single-project).
