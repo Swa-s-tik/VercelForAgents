@@ -5,7 +5,7 @@ PROTO_SRC := ../../proto
 PKG       := github.com/agentctl/gateway_core/gen/acpv1
 MMAP      := Menvelope.proto=$(PKG),Mdataplane.proto=$(PKG),Mcontrolplane.proto=$(PKG)
 
-.PHONY: proto build run tidy clean
+.PHONY: proto build run tidy clean fixtures conformance
 
 proto:
 	mkdir -p gen/acpv1
@@ -23,6 +23,15 @@ build:
 
 run: build
 	./bin/gateway
+
+# Golden-wire conformance (Workstream 4): prove the Go runtime marshals the shared frame specs to
+# the same bytes the Python suite (tests/test_conformance.py) asserts.
+conformance:
+	go test ./internal/gateway/ -run Conformance -v
+
+# Marshal each spec via Go and compare to the committed golden_hex (cross-check / regen aid).
+fixtures:
+	go run ./cmd/genfixtures
 
 clean:
 	rm -rf gen bin

@@ -1,0 +1,164 @@
+{
+  "_doc": "Golden-wire conformance vectors. golden_hex = Python deterministic proto marshal (the reference wire). header_hex = marshal of the frozen header (fields 1-4), which IS byte-identical across runtimes. NOTE: protobuf deterministic marshaling is per-runtime canonical, not cross-runtime \u2014 Go orders the oneof after the map, Python before it \u2014 so the conformance contract is (a) byte-identical frozen header + (b) lossless cross-runtime decode, NOT byte-identical full frames. Regenerate via `python tests/conformance_frames.py`.",
+  "frames": [
+    {
+      "name": "client_text",
+      "session_id": "sess-001",
+      "stream_id": 7,
+      "seq": 3,
+      "direction": "CLIENT_TO_AGENT",
+      "ts_unix_nanos": 1700000000000000001,
+      "attributes": {
+        "traceparent": "00-abc-def-01",
+        "deployment_id": "42"
+      },
+      "payload": {
+        "kind": "text",
+        "content": "where is my refund?",
+        "partial": false
+      },
+      "golden_hex": "0a08736573732d3030311007180320012a150a137768657265206973206d7920726566756e643f8201130a0d6465706c6f796d656e745f69641202343282011c0a0b7472616365706172656e74120d30302d6162632d6465662d303188018180a8b1e39fe7cb17",
+      "header_hex": "0a08736573732d303031100718032001"
+    },
+    {
+      "name": "agent_text_partial",
+      "session_id": "sess-001",
+      "stream_id": 7,
+      "seq": 4,
+      "direction": "AGENT_TO_CLIENT",
+      "attributes": {
+        "served_by": "v2"
+      },
+      "payload": {
+        "kind": "text",
+        "content": "Looking into order ",
+        "partial": true
+      },
+      "golden_hex": "0a08736573732d3030311007180420022a170a134c6f6f6b696e6720696e746f206f7264657220100182010f0a097365727665645f627912027632",
+      "header_hex": "0a08736573732d303031100718042002"
+    },
+    {
+      "name": "tool_call_side_effecting",
+      "session_id": "sess-002",
+      "stream_id": 1,
+      "seq": 11,
+      "direction": "AGENT_TO_CLIENT",
+      "payload": {
+        "kind": "tool_call",
+        "call_id": "c-9",
+        "tool_name": "issue_refund",
+        "arguments_hex": "7b226f72646572223a22412d32323931227d",
+        "side_effecting": true
+      },
+      "golden_hex": "0a08736573732d3030321001180b20023a290a03632d39120c69737375655f726566756e641a127b226f72646572223a22412d32323931227d2001",
+      "header_hex": "0a08736573732d3030321001180b2002"
+    },
+    {
+      "name": "tool_result_mocked",
+      "session_id": "sess-002",
+      "stream_id": 1,
+      "seq": 12,
+      "direction": "AGENT_TO_CLIENT",
+      "payload": {
+        "kind": "tool_result",
+        "call_id": "c-9",
+        "result_hex": "6f6b",
+        "is_error": false,
+        "mocked": true
+      },
+      "golden_hex": "0a08736573732d3030321001180c2002420b0a03632d3912026f6b2001",
+      "header_hex": "0a08736573732d3030321001180c2002"
+    },
+    {
+      "name": "control_interrupt",
+      "session_id": "sess-003",
+      "stream_id": 2,
+      "seq": 0,
+      "direction": "CLIENT_TO_AGENT",
+      "payload": {
+        "kind": "control",
+        "control_kind": "INTERRUPT",
+        "reason": "user barge-in",
+        "ack_seq": 5,
+        "credits": 0
+      },
+      "golden_hex": "0a08736573732d303033100220014a130801120d757365722062617267652d696e1805",
+      "header_hex": "0a08736573732d30303310022001"
+    },
+    {
+      "name": "turn_end_stop",
+      "session_id": "sess-001",
+      "stream_id": 7,
+      "seq": 99,
+      "direction": "AGENT_TO_CLIENT",
+      "payload": {
+        "kind": "turn_end",
+        "turn_id": "sess-001:7",
+        "reason": "STOP",
+        "prompt_tokens": 128,
+        "completion_tokens": 64
+      },
+      "golden_hex": "0a08736573732d30303110071863200262130a0a736573732d3030313a3710011880012040",
+      "header_hex": "0a08736573732d303031100718632002"
+    },
+    {
+      "name": "binary_image_chunk",
+      "session_id": "sess-004",
+      "stream_id": 3,
+      "seq": 1,
+      "direction": "CLIENT_TO_AGENT",
+      "payload": {
+        "kind": "binary",
+        "modality": "IMAGE",
+        "codec": "jpeg",
+        "group_id": 88,
+        "index": 0,
+        "last": true,
+        "data_hex": "ffd8ffe000104a464946",
+        "width": 640,
+        "height": 480,
+        "pts_nanos": 123456789
+      },
+      "golden_hex": "0a08736573732d3030341003180120013223080412046a70656718582801320affd8ffe000104a46494638800540e00348959aef3a",
+      "header_hex": "0a08736573732d303034100318012001"
+    },
+    {
+      "name": "approval_req_high",
+      "session_id": "sess-005",
+      "stream_id": 4,
+      "seq": 2,
+      "direction": "AGENT_TO_CLIENT",
+      "payload": {
+        "kind": "approval_req",
+        "approval_id": "ap-1",
+        "action_summary": "wire $5,000",
+        "action_payload_hex": "cafe",
+        "expires_at_unix": 1700000123,
+        "risk": "HIGH"
+      },
+      "golden_hex": "0a08736573732d303035100418022002521f0a0461702d31120b776972652024352c3030301a02cafe20fbe2cfaa062803",
+      "header_hex": "0a08736573732d303035100418022002"
+    },
+    {
+      "name": "attributes_multikey",
+      "session_id": "sess-006",
+      "stream_id": 9,
+      "seq": 7,
+      "direction": "AGENT_TO_CLIENT",
+      "attributes": {
+        "zeta": "1",
+        "alpha": "2",
+        "mid": "3",
+        "canary_arm": "vB",
+        "shadow": "true"
+      },
+      "payload": {
+        "kind": "text",
+        "content": "fan-out",
+        "partial": false
+      },
+      "golden_hex": "0a08736573732d3030361009180720022a090a0766616e2d6f757482010a0a05616c7068611201328201100a0a63616e6172795f61726d120276428201080a036d696412013382010e0a06736861646f771204747275658201090a047a657461120131",
+      "header_hex": "0a08736573732d303036100918072002"
+    }
+  ]
+}
