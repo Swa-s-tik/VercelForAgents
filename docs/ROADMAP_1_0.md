@@ -30,8 +30,9 @@ local commit, without breaking the existing zero-config demo or test suite.
   ([QDRANT_STATE_STORE](design/QDRANT_STATE_STORE.md)). A Pinecone adapter is the remaining one.
 - `users` + `role_bindings` tables (1.0 uses a lean role-per-key model).
 - A hard FK `deployments.project_id → projects.id` (1.0 keeps it a soft, seeded reference).
-- Full RBAC enforcement on the Go gateway (1.0 ships a wired-but-permissive metadata interceptor;
-  the Python proxy enforces).
+- ✅ **Full RBAC enforcement on the Go gateway** — delivered
+  ([GO_GATEWAY_RBAC](design/GO_GATEWAY_RBAC.md)). The Go gateway now validates keys against Postgres
+  (sha256 lookup + tenant/role checks + a TTL cache), not just a presence check.
 - OTLP-collector telemetry path alongside the native ClickHouse exporter.
 - Control-plane proto messages in the conformance suite (1.0 covers the `Frame` hot path).
 - Helm chart / k8s operator; hosted GitHub App (1.0 uses the webhook emulator).

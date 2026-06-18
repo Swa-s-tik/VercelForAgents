@@ -41,10 +41,13 @@ func main() {
 		log.Printf("routing: static default table")
 	}
 
+	// API-key auth: full validation against Postgres when AGENTCTL_PG_DSN is set (same DSN as
+	// routing), else a presence check. Permissive unless AGENTCTL_REQUIRE_KEY=1.
+	authn := gateway.NewAuthenticator(os.Getenv("AGENTCTL_PG_DSN"))
 	srv := grpc.NewServer(
 		grpc.MaxRecvMsgSize(64*mb), grpc.MaxSendMsgSize(64*mb),
-		grpc.StreamInterceptor(gateway.StreamAuthInterceptor),
-		grpc.UnaryInterceptor(gateway.UnaryAuthInterceptor),
+		grpc.StreamInterceptor(authn.StreamInterceptor),
+		grpc.UnaryInterceptor(authn.UnaryInterceptor),
 	)
 	acpv1.RegisterAgentStreamServer(srv, gateway.NewServer(resolver))
 	log.Printf("gateway_core (Go data plane) listening on :%s", port)

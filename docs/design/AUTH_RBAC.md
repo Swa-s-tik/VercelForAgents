@@ -65,10 +65,10 @@ and all existing tests pass unchanged.
   present key against Postgres and aborts `UNAUTHENTICATED` (same-cardinality handler) on
   invalid/missing-when-required. Permissive by default → existing gateway tests are keyless and
   unchanged.
-- **gRPC — Go gateway (`gateway_core/internal/gateway/auth.go`):** wired Stream/Unary interceptors
-  that **presence-check** `x-api-key` only when `AGENTCTL_REQUIRE_KEY=1`. The Go gateway's job is
-  routing; the control plane / SoR is the validity authority. Full Go-side validation against
-  Postgres is a deliberate **post-1.0** item — documented here, not a silent gap.
+- **gRPC — Go gateway (`gateway_core/internal/gateway/auth.go`):** in 1.0, presence-checked
+  `x-api-key` only. **Post-1.0 this was upgraded to full validation** — sha256 lookup against
+  `controlplane.api_keys` + tenant (`project_id`) and role checks, with a TTL cache. See
+  `docs/design/GO_GATEWAY_RBAC.md`.
 - **CLI:** `--api-key` / `AGENTCTL_API_KEY` on `push` and the `rollback` subcommands; new
   `agentctl auth {create-key,list-keys,revoke-key}`.
 

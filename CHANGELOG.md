@@ -7,6 +7,13 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Full RBAC enforcement on the Go data plane** (post-1.0). The compiled Go gateway now validates
+  `x-api-key` against `controlplane.api_keys` (sha256 lookup, revoked excluded) and enforces tenant
+  (`project_id`) + minimum role, with a 15s TTL cache to keep Postgres off the hot path — upgrading
+  the 1.0 presence-check. Degrades to presence-only without a DSN; permissive unless
+  `AGENTCTL_REQUIRE_KEY=1`. New: `gateway_core/internal/gateway/auth.go` (rewritten) + `auth_test.go`
+  (CI, no PG), `tests/test_go_gateway_auth.py` (real-gateway e2e, self-skips), and
+  `docs/design/GO_GATEWAY_RBAC.md`.
 - **Qdrant vector state store** (post-1.0): a second managed vector backend behind the `StateStore`
   protocol, selected via `AGENTCTL_STATE_BACKEND=qdrant`. Uses Qdrant's native collection aliases
   for the alias-swap rollback (historical collections preserved), reusing the exact digest contract
