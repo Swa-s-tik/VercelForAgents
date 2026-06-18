@@ -26,7 +26,8 @@ local commit, without breaking the existing zero-config demo or test suite.
 
 ## Post-1.0 (deliberately deferred)
 
-- Qdrant / Pinecone vector adapters behind the same `StateStore` protocol.
+- ✅ **Qdrant** vector adapter behind the `StateStore` protocol — delivered
+  ([QDRANT_STATE_STORE](design/QDRANT_STATE_STORE.md)). A Pinecone adapter is the remaining one.
 - `users` + `role_bindings` tables (1.0 uses a lean role-per-key model).
 - A hard FK `deployments.project_id → projects.id` (1.0 keeps it a soft, seeded reference).
 - Full RBAC enforcement on the Go gateway (1.0 ships a wired-but-permissive metadata interceptor;

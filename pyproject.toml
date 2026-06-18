@@ -24,6 +24,10 @@ dependencies = [
   "rich>=13.0",
 ]
 
+[project.optional-dependencies]
+# managed vector backend (AGENTCTL_STATE_BACKEND=qdrant); core install stays slim.
+qdrant = ["qdrant-client>=1.7"]
+
 [project.scripts]
 agentctl = "agentctl.cli:main"
 

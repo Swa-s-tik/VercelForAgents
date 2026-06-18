@@ -33,6 +33,14 @@ def _stores(conn: psycopg.Connection | None = None, project_id: str | None = Non
             "memory_graph": PgMemoryStore(project_id, conn),
             "relational_schema": SchemaStoreStub(),
         }
+    if STATE_BACKEND == "qdrant":
+        # Qdrant swaps only the vector store; memory + schema stay the file-backed stubs.
+        from agentctl.rollback.stores.qdrant_store import QdrantStore
+        return {
+            "vector_store": QdrantStore(project_id),
+            "memory_graph": MemoryGraphStub(),
+            "relational_schema": SchemaStoreStub(),
+        }
     return {
         "vector_store": VectorStoreStub(),
         "memory_graph": MemoryGraphStub(),
