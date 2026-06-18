@@ -16,9 +16,12 @@ protobuf stubs, so you do **not** need `protoc`).
 | **Python** | 3.10+ | `python3 --version` | For the control plane + the `agentctl` CLI. A venv is strongly recommended. |
 | **Git** | any | `git --version` | To clone the repo. |
 
-> **Go is optional.** The full stack runs entirely in Docker (the gateway is compiled inside its
-> image). You only need a local Go toolchain (`go >= 1.22`) if you want to compile the data plane
-> outside Docker — see the optional step at the end.
+> **Go is optional — with one caveat.** The full stack runs in Docker (the gateway is compiled inside
+> its image), so the control plane, eval-gate, routing flip, and rollback all work with no local Go.
+> **But** the demo's ②′ "stream through the Go gateway" stage launches a *host-side* Go binary that the
+> Docker build doesn't produce — to see that one stage you need a local Go toolchain (`go >= 1.22`) and
+> the optional `make build` step at the end. Without it, that stage prints `streaming proof skipped` and
+> the rest of the pipeline runs on the Python proxy.
 
 ---
 
@@ -89,16 +92,21 @@ Watch for, in order:
    content-addressed commit.
 2. **② preview** — a deployment is registered and an **isolated preview agent** boots on its own
    port (`queued → building → ready`).
-3. **②′ live stream through the Go data plane** — the part to actually watch:
+3. **②′ live stream through the Go data plane** — the part to actually watch *(requires the host-side Go
+   binary from `make build`; otherwise this stage prints `streaming proof skipped` and the pipeline
+   continues on the Python proxy)*:
    - **incremental streaming** — ~21 `TextDelta` frames arrive spread over several hundred
      milliseconds (first @ ~30ms, last @ ~600ms). Nothing is buffered; you're seeing tokens stream
      through the real Go gateway.
-   - **tool interception** — the agent emits an `issue_refund` tool call marked side-effecting. The
-     sandbox **intercepts and mocks** it: `real refunds issued: 0`, and it's sealed as
-     `side_effect / irreversible` in the rollback checkpoint.
+   - **side-effect handling** — the agent emits an `issue_refund` tool call marked side-effecting, which
+     is **sandbox-mocked** in preview (`real refunds issued: 0`) and sealed as
+     `side_effect / irreversible` in the rollback checkpoint. (Today the sandbox call is invoked
+     out-of-band rather than wired to the streamed tool frame — the seal is real, the interception is
+     illustrative.)
 4. **the eval-gate, live** — the **Wilson 95% confidence interval bar updates in place** as paired
    samples stream in, and **Wald's SPRT** stops early and prints its call, e.g.
-   `SPRT ALLOW @ 41/300 samples · Wilson95 [0.530, 0.804]`.
+   `SPRT ALLOW @ 41/300 samples · Wilson95 [0.530, 0.804]`. *(The samples come from a seeded synthetic
+   judge — the statistics are real; the preference data is simulated until you wire your own judge.)*
 5. **③ routing promotion** — because the candidate is non-inferior, you get
    `✅ PR MERGED → promoted 100% live`. Under the hood that's the **atomic routing flip** (advisory
    lock + partial-unique index), and its `pg_notify` re-routes the live Go gateway over

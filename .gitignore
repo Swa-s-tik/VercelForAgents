@@ -9,3 +9,5 @@ build/
 dist/
 # generated gRPC stubs are VENDORED (committed) so a fresh clone / Docker build needs no protoc.
 .pytest_cache/
+# local-only project explainer (not part of the published repo)
+OVERVIEW.md
