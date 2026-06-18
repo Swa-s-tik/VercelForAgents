@@ -19,7 +19,16 @@ zero-config demo and the existing test suite are unchanged.
   `gateway_core/cmd/genfixtures`, `make fixtures` / `make conformance`, and
   `docs/design/PROTO_CONFORMANCE.md`. The first Go test in the repo.
 
-<!-- subsequent workstreams appended here as they land: auth/RBAC, pgvector, ClickHouse/Grafana -->
+- **Multi-tenant RBAC via API keys** (Workstream 2). `orgs`/`projects`/`api_keys` tables
+  (role-per-key: viewer/developer/admin/owner; sha256-hashed secrets). `project_id` is now resolved
+  from the authenticated principal instead of a hardcoded constant — backward-compatibly: a seeded
+  bootstrap project/key means `resolve_principal(None)` returns the demo project, so zero-config
+  `agentctl push` and all existing tests are unchanged. Enforcement at FastAPI (`Depends`), a gRPC
+  interceptor (Python proxy) + wired presence-check (Go gateway, `AGENTCTL_REQUIRE_KEY=1`), and the
+  CLI (`--api-key` + `agentctl auth create-key/list-keys/revoke-key`). New: `agentctl/auth/*`,
+  `tests/test_auth.py`, `docs/design/AUTH_RBAC.md`.
+
+<!-- subsequent workstreams appended here as they land: pgvector, ClickHouse/Grafana -->
 
 ## [0.1.0]
 

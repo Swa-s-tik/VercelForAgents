@@ -95,7 +95,10 @@ class GatewayServicer(dpg.AgentStreamServicer):
 async def serve(port: int, servicer: GatewayServicer | None = None,
                 options=None) -> tuple[grpc.aio.Server, GatewayServicer]:
     servicer = servicer or GatewayServicer()
-    server = grpc.aio.server(options=options)
+    # API-key interceptor: permissive by default (no key passes through), enforces when a key is
+    # present or AGENTCTL_REQUIRE_KEY=1 — so existing tests/demo run keyless and unchanged.
+    from agentctl.auth.grpc_interceptor import ApiKeyServerInterceptor
+    server = grpc.aio.server(options=options, interceptors=[ApiKeyServerInterceptor()])
     dpg.add_AgentStreamServicer_to_server(servicer, server)
     server.add_insecure_port(f"[::]:{port}")
     await server.start()

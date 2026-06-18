@@ -122,13 +122,23 @@ def healthz():
 
 @app.post("/webhook/git")
 async def webhook_git(request: Request):
+    # HMAC authenticates the PAYLOAD (GitHub-style); the API key selects the TENANT. Both are
+    # independently optional so the zero-config demo still works (no key -> bootstrap project).
     body = await request.body()
     if not verify_signature(body, request.headers.get("X-Hub-Signature-256")):
         raise HTTPException(401, "bad signature")
     payload = await request.json()
+    from agentctl.auth.principal import AuthError, resolve_principal
+    key = request.headers.get("X-API-Key")
+    if not key and os.environ.get("AGENTCTL_REQUIRE_KEY") == "1":
+        raise HTTPException(401, "API key required")
     conn = connect()
     try:
-        return handle_push(conn, payload, provision=False)
+        try:
+            principal = resolve_principal(conn, key).require("developer")
+        except AuthError as e:
+            raise HTTPException(403 if key else 401, str(e))
+        return handle_push(conn, payload, project_id=principal.project_id, provision=False)
     except ValueError as e:
         raise HTTPException(400, str(e))
     finally:

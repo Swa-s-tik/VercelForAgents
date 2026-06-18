@@ -6,13 +6,15 @@ from __future__ import annotations
 
 from dataclasses import asdict
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 
+from agentctl.auth.fastapi_dep import principal_dep
 from agentctl.eval.gate import GateConfig
 from agentctl.eval.runner import gate_pr, gate_run
 from agentctl.storage.duckdb_store import EvalStore
 
 app = FastAPI(title="agentctl eval-gating")
+_viewer = Depends(principal_dep("viewer"))
 
 
 def _store() -> EvalStore:
@@ -25,7 +27,7 @@ def healthz():
 
 
 @app.get("/gate/{run_id}")
-def gate(run_id: str, nim: float = 0.50, n_min: int = 100):
+def gate(run_id: str, nim: float = 0.50, n_min: int = 100, principal=_viewer):
     store = _store()
     if store.run_meta(run_id) is None:
         raise HTTPException(404, f"unknown run_id {run_id!r}")
@@ -34,7 +36,7 @@ def gate(run_id: str, nim: float = 0.50, n_min: int = 100):
 
 
 @app.get("/gate/pr/{pr_number}")
-def gate_pr_endpoint(pr_number: int, nim: float = 0.50, n_min: int = 100):
+def gate_pr_endpoint(pr_number: int, nim: float = 0.50, n_min: int = 100, principal=_viewer):
     store = _store()
     verdict, decisions = gate_pr(store, pr_number, GateConfig(nim=nim, n_min=n_min))
     return {
