@@ -7,6 +7,12 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Helm chart** (post-1.0). `deploy/helm/agentctl` deploys the core 3-tier (Postgres + Go gateway +
+  Python control plane) to Kubernetes, mirroring the default compose topology. Ordering is enforced
+  by init-containers (schema-init Job waits for Postgres; gateway/control plane wait for the schema
+  table) — no hooks, no deadlock. Verified end-to-end on a kind cluster (helm lint/template, install
+  --wait, pods Running + schema Job Complete, `/healthz` ok, in-cluster CLI). New:
+  `deploy/helm/agentctl/*`, `docs/design/HELM_K8S.md`.
 - **Users + role bindings** (post-1.0). `users` and `role_bindings` tables + `api_keys.user_id`
   extend RBAC beyond role-per-key: a key may belong to a user, and its effective role is the user's
   binding on the project (`COALESCE(binding, key.role)`), resolved identically by the Python

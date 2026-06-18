@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agentctl.pgHost" . }}
+  labels: {{- include "agentctl.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: {{ .Values.postgres.image }}
+          env:
+            - { name: POSTGRES_USER, value: {{ .Values.postgres.user | quote }} }
+            - { name: POSTGRES_PASSWORD, value: {{ .Values.postgres.password | quote }} }
+            - { name: POSTGRES_DB, value: {{ .Values.postgres.db | quote }} }
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
+          ports:
+            - containerPort: 5432
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", {{ .Values.postgres.user | quote }}, "-d", {{ .Values.postgres.db | quote }}]
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          resources: {{- toYaml .Values.postgres.resources | nindent 12 }}
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "agentctl.pgHost" . }}
+  labels: {{- include "agentctl.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: postgres
+  ports:
+    - { port: 5432, targetPort: 5432 }

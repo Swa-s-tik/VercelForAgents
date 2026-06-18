@@ -1,0 +1,15 @@
+agentctl {{ .Chart.AppVersion }} deployed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+Components:
+  postgres      {{ include "agentctl.pgHost" . }}:5432        (system-of-record; schema applied by the schema-init Job)
+  control plane {{ include "agentctl.fullname" . }}-controlplane:{{ .Values.controlplane.port }}   (webhook + /healthz)
+  gateway       {{ include "agentctl.fullname" . }}-gateway:{{ .Values.gateway.port }}        (Go data plane, gRPC)
+
+Smoke test the control plane:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "agentctl.fullname" . }}-controlplane {{ .Values.controlplane.port }}:{{ .Values.controlplane.port }}
+  curl localhost:{{ .Values.controlplane.port }}/healthz
+
+{{- if not .Values.requireKey }}
+
+Auth is permissive (zero-config). Set `--set requireKey=true --set gateway.requireKey=true` to enforce API keys.
+{{- end }}

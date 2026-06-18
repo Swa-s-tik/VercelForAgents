@@ -39,4 +39,5 @@ local commit, without breaking the existing zero-config demo or test suite.
 - ✅ **Control-plane + Health proto messages in the conformance suite** — delivered
   ([PROTO_CONFORMANCE](design/PROTO_CONFORMANCE.md)). The whole wire contract (Frame + control plane
   + Health) is now cross-runtime decode-verified.
-- Helm chart / k8s operator; hosted GitHub App (1.0 uses the webhook emulator).
+- ✅ **Helm chart** — delivered ([HELM_K8S](design/HELM_K8S.md)); deploys the core 3-tier to
+  Kubernetes, verified end-to-end on a kind cluster. A full CRD operator + hosted GitHub App remain.

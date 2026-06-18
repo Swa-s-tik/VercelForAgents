@@ -1,0 +1,11 @@
+apiVersion: v2
+name: agentctl
+description: The agentctl control plane — Postgres SoR, the Go data-plane gateway, and the Python control plane.
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+home: https://github.com/Swa-s-tik/VercelForAgents
+sources:
+  - https://github.com/Swa-s-tik/VercelForAgents
+maintainers:
+  - name: agentctl authors
