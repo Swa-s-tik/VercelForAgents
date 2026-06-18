@@ -107,9 +107,14 @@ func (a *Authenticator) resolve(ctx context.Context, key string) (*principal, bo
 	a.mu.RUnlock()
 
 	var pid, role string
+	// effective role = the user's binding on this project (user-bound keys) else the key's own
+	// role — the same COALESCE the Python resolver uses, so both planes agree.
 	err := a.db.QueryRowContext(ctx,
-		"SELECT project_id::text, role::text FROM controlplane.api_keys "+
-			"WHERE key_hash=$1 AND revoked_at IS NULL", h).Scan(&pid, &role)
+		"SELECT k.project_id::text, COALESCE(rb.role, k.role)::text "+
+			"FROM controlplane.api_keys k "+
+			"LEFT JOIN controlplane.role_bindings rb "+
+			"  ON rb.user_id = k.user_id AND rb.project_id = k.project_id "+
+			"WHERE k.key_hash=$1 AND k.revoked_at IS NULL", h).Scan(&pid, &role)
 	switch err {
 	case nil:
 		e := cacheEntry{&principal{pid, role}, true, time.Now().Add(a.ttl)}

@@ -102,3 +102,46 @@ def test_revoked_key_rejected():
             resolve_principal(conn, secret)
     finally:
         conn.close()
+
+
+# ---- users + role bindings (post-1.0) ----
+def test_user_bound_key_uses_binding_role():
+    from agentctl.auth.keys import create_api_key
+    from agentctl.auth.users import bind_role, create_user, list_users, org_for_project, user_by_email
+    conn = connect()
+    try:
+        org = org_for_project(conn, DEMO_PROJECT_ID)
+        uid = create_user(conn, org, "dev@example.com")
+        bind_role(conn, uid, DEMO_PROJECT_ID, "developer")
+        secret, _ = create_api_key(conn, DEMO_PROJECT_ID, "k", role="viewer", user_id=uid)
+        conn.commit()
+
+        # effective role comes from the BINDING (developer), not the key's own column (viewer)
+        p = resolve_principal(conn, secret)
+        assert p.role == "developer" and p.email == "dev@example.com" and p.user_id == uid
+
+        # re-binding centrally changes the key's effective role
+        bind_role(conn, uid, DEMO_PROJECT_ID, "admin")
+        conn.commit()
+        p2 = resolve_principal(conn, secret)
+        assert p2.role == "admin"
+        p2.require("admin")
+        with pytest.raises(AuthError):
+            p2.require("owner")
+
+        # create_user is idempotent + lookup works
+        assert user_by_email(conn, org, "dev@example.com") == uid
+        assert ("dev@example.com", "admin") in [(r["email"], r["role"]) for r in list_users(conn, DEMO_PROJECT_ID)]
+    finally:
+        conn.close()
+
+
+def test_standalone_key_unaffected_by_bindings():
+    # a key with no user keeps its own role (the 1.0 model) even though bindings exist.
+    conn = connect()
+    try:
+        secret, _ = _insert_key(conn, "viewer")
+        assert resolve_principal(conn, secret).role == "viewer"
+        assert resolve_principal(conn, secret).email is None
+    finally:
+        conn.close()

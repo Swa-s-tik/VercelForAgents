@@ -29,3 +29,14 @@ def generate_key() -> tuple[str, str, str]:
     """Return (secret, prefix, hash). Persist prefix+hash; hand the secret to the user once."""
     secret = PREFIX + secrets.token_hex(_BODY_BYTES)
     return secret, key_prefix(secret), hash_key(secret)
+
+
+def create_api_key(conn, project_id: str, name: str, role: str, user_id: str | None = None) -> tuple[str, str]:
+    """Insert a new key row; return (secret, key_id). The secret is shown to the operator once."""
+    secret, prefix, key_hash = generate_key()
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO controlplane.api_keys (project_id, user_id, name, key_prefix, key_hash, role) "
+            "VALUES (%s,%s,%s,%s,%s,%s) RETURNING id",
+            [project_id, user_id, name, prefix, key_hash, role])
+        return secret, str(cur.fetchone()["id"])

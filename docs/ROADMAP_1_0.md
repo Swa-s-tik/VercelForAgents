@@ -28,7 +28,9 @@ local commit, without breaking the existing zero-config demo or test suite.
 
 - ✅ **Qdrant** vector adapter behind the `StateStore` protocol — delivered
   ([QDRANT_STATE_STORE](design/QDRANT_STATE_STORE.md)). A Pinecone adapter is the remaining one.
-- `users` + `role_bindings` tables (1.0 uses a lean role-per-key model).
+- ✅ **`users` + `role_bindings`** — delivered ([AUTH_RBAC](design/AUTH_RBAC.md)). A key can belong
+  to a user; its effective role is the user's project binding (`COALESCE(binding, key.role)`),
+  resolved identically on both planes. Standalone keys keep the 1.0 role-per-key behavior.
 - A hard FK `deployments.project_id → projects.id` (1.0 keeps it a soft, seeded reference).
 - ✅ **Full RBAC enforcement on the Go gateway** — delivered
   ([GO_GATEWAY_RBAC](design/GO_GATEWAY_RBAC.md)). The Go gateway now validates keys against Postgres
