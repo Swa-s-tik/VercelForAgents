@@ -136,10 +136,10 @@ func HeaderFrame(s Spec) *acpv1.Frame {
 	}
 }
 
-// MarshalHex deterministically marshals a Frame to a hex string (matches Python
+// MarshalHex deterministically marshals any proto message to a hex string (matches Python
 // SerializeToString(deterministic=True).hex()).
-func MarshalHex(f *acpv1.Frame) (string, error) {
-	b, err := proto.MarshalOptions{Deterministic: true}.Marshal(f)
+func MarshalHex(m proto.Message) (string, error) {
+	b, err := proto.MarshalOptions{Deterministic: true}.Marshal(m)
 	if err != nil {
 		return "", err
 	}
