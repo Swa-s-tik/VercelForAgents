@@ -41,7 +41,11 @@ func main() {
 		log.Printf("routing: static default table")
 	}
 
-	srv := grpc.NewServer(grpc.MaxRecvMsgSize(64*mb), grpc.MaxSendMsgSize(64*mb))
+	srv := grpc.NewServer(
+		grpc.MaxRecvMsgSize(64*mb), grpc.MaxSendMsgSize(64*mb),
+		grpc.StreamInterceptor(gateway.StreamAuthInterceptor),
+		grpc.UnaryInterceptor(gateway.UnaryAuthInterceptor),
+	)
 	acpv1.RegisterAgentStreamServer(srv, gateway.NewServer(resolver))
 	log.Printf("gateway_core (Go data plane) listening on :%s", port)
 	if err := srv.Serve(lis); err != nil {

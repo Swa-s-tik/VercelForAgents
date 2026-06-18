@@ -28,7 +28,8 @@ DEFAULT_DB = os.environ.get("AGENTCTL_DUCKDB", ".agentctl/eval.duckdb")
 def _cmd_push(args) -> int:
     from agentctl.cli.main import run_push
     return run_push(path=args.path, simulate_regression=args.simulate_regression,
-                    samples=args.samples, db=args.db, provision=not args.no_provision)
+                    samples=args.samples, db=args.db, provision=not args.no_provision,
+                    api_key=args.api_key)
 
 
 def _add_push_parser(sub) -> None:
@@ -40,6 +41,8 @@ def _add_push_parser(sub) -> None:
     p.add_argument("--no-provision", action="store_true",
                    help="skip spinning up the isolated preview container")
     p.add_argument("--db", default=DEFAULT_DB)
+    p.add_argument("--api-key", default=os.environ.get("AGENTCTL_API_KEY"),
+                   help="API key for the target project (else AGENTCTL_API_KEY / bootstrap)")
     p.set_defaults(func=_cmd_push)
 
 
@@ -122,7 +125,8 @@ def build_parser() -> argparse.ArgumentParser:
     _add_eval_parsers(sub)
     for mod, fn in (("agentctl.rollback.cli", "add_rollback_parser"),
                     ("agentctl.gateway.cli", "add_gateway_parsers"),
-                    ("agentctl.control.cli", "add_webhook_parsers")):
+                    ("agentctl.control.cli", "add_webhook_parsers"),
+                    ("agentctl.auth.cli", "add_auth_parsers")):
         try:
             __import__(mod, fromlist=[fn])
             getattr(sys.modules[mod], fn)(sub)

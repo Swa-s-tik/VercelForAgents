@@ -147,3 +147,53 @@ CREATE TABLE otel_spans (
   PRIMARY KEY (trace_id, span_id)
 );
 CREATE INDEX spans_project_time_idx ON otel_spans (project_id, start_unixnano DESC);
+
+-- ---------- multi-tenant RBAC (1.0): orgs / projects / api_keys ----------
+-- project_id is already the tenancy dimension on every table above; these give it a real
+-- identity + authorization model. role-per-key is the right altitude for a key-authenticated
+-- control plane with no external IdP (users/role_bindings are a documented post-1.0 extension).
+CREATE TYPE rbac_role AS ENUM ('viewer','developer','admin','owner');
+
+CREATE TABLE orgs (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug       TEXT UNIQUE NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE projects (
+  id         UUID PRIMARY KEY,
+  org_id     UUID NOT NULL REFERENCES orgs(id),
+  slug       TEXT NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (org_id, slug)
+);
+
+CREATE TABLE api_keys (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID NOT NULL REFERENCES projects(id),
+  name       TEXT NOT NULL,
+  key_prefix TEXT NOT NULL,                 -- shown in UIs/logs; never the secret
+  key_hash   TEXT NOT NULL,                 -- sha256(secret); the secret is never stored
+  role       rbac_role NOT NULL DEFAULT 'developer',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  revoked_at timestamptz
+);
+CREATE UNIQUE INDEX api_keys_hash_idx ON api_keys (key_hash);
+CREATE INDEX api_keys_project_idx ON api_keys (project_id);
+
+-- ---------- bootstrap (the backward-compat keystone) ----------
+-- Seed a real default org/project whose id IS the historic DEMO_PROJECT_ID, plus an owner key.
+-- This is what lets resolve_principal(None) fall back to a project row that actually exists, so
+-- the zero-config demo and every existing test keep working unchanged. Idempotent.
+INSERT INTO orgs (id, slug)
+  VALUES ('00000000-0000-0000-0000-0000000000a0','default')
+  ON CONFLICT (id) DO NOTHING;
+INSERT INTO projects (id, org_id, slug)
+  VALUES ('00000000-0000-0000-0000-0000000000a1','00000000-0000-0000-0000-0000000000a0','default')
+  ON CONFLICT (id) DO NOTHING;
+-- bootstrap key = 'actl_dev_bootstrap_0000000000000000' (documented in docs/LOCAL_SETUP.md);
+-- only its sha256 is stored. Role owner so the no-key default path is fully capable locally.
+INSERT INTO api_keys (project_id, name, key_prefix, key_hash, role)
+  VALUES ('00000000-0000-0000-0000-0000000000a1','bootstrap','actl_dev_boo',
+          '4567f685fabf4123b67e3cda67d3e10b56fbb1dbd5e5df36fe6626429ca27b0a','owner')
+  ON CONFLICT (key_hash) DO NOTHING;

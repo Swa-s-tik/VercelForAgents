@@ -13,13 +13,26 @@ from __future__ import annotations
 import psycopg
 from psycopg.types.json import Json
 
+from agentctl.config import STATE_BACKEND
 from agentctl.rollback import audit, manifest as mf, routing
 from agentctl.rollback.stores.memory_stub import MemoryGraphStub
 from agentctl.rollback.stores.schema_stub import SchemaMigrationError, SchemaStoreStub
 from agentctl.rollback.stores.vector_stub import VectorStoreStub
 
 
-def _stores() -> dict:
+def _stores(conn: psycopg.Connection | None = None, project_id: str | None = None) -> dict:
+    """The state-store registry keyed by mutation_class. Default = file-backed stubs (zero infra,
+    used by the offline tests). With AGENTCTL_STATE_BACKEND=pgvector AND a live conn, the vector +
+    memory stores are the real pgvector/Postgres adapters; relational_schema stays the stub (its
+    rollback is a migration-refusal, deliberately Postgres-independent)."""
+    if STATE_BACKEND == "pgvector" and conn is not None:
+        from agentctl.rollback.stores.memory_pg import PgMemoryStore
+        from agentctl.rollback.stores.vector_pg import PgVectorStore
+        return {
+            "vector_store": PgVectorStore(project_id, conn),
+            "memory_graph": PgMemoryStore(project_id, conn),
+            "relational_schema": SchemaStoreStub(),
+        }
     return {
         "vector_store": VectorStoreStub(),
         "memory_graph": MemoryGraphStub(),
@@ -29,7 +42,7 @@ def _stores() -> dict:
 
 def rollback_to_commit(conn: psycopg.Connection, project_id: str,
                        to_commit_sha: str, actor: str = "cli") -> dict:
-    stores = _stores()
+    stores = _stores(conn, project_id)
 
     # ---- Phase 0: resolve target + sealed checkpoint; find current live deployment ----
     with conn.cursor() as cur:

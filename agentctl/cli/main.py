@@ -205,7 +205,7 @@ async def _stream_through_go(gateway_endpoint: str = "localhost:50050"):
     return chunks, tool
 
 
-def _streaming_proof(conn, dep_id, sha, name) -> dict:
+def _streaming_proof(conn, dep_id, sha, name, project_id=DEMO_PROJECT_ID) -> dict:
     """Make the preview the live route, launch the Go gateway, stream a turn through it (prove
     incremental chunks + the issue_refund ToolCall), intercept the tool in the sandbox, and seal
     the side-effect into the deployment checkpoint."""
@@ -217,11 +217,11 @@ def _streaming_proof(conn, dep_id, sha, name) -> dict:
     from agentctl.runtime.sandbox_interceptor import SandboxInterceptor, Tool, ToolInvoker
 
     conn.commit()
-    routing.flip_routing(conn, DEMO_PROJECT_ID, dep_id, reason=f"preview:{sha}", actor="push")
+    routing.flip_routing(conn, project_id, dep_id, reason=f"preview:{sha}", actor="push")
     if not binary_available():
         return {"skipped": "Go gateway not built (cd agentctl/gateway_core && make build)"}
 
-    gw = launch_go_gateway(port=50050, project_id=DEMO_PROJECT_ID)
+    gw = launch_go_gateway(port=50050, project_id=project_id)
     try:
         chunks, tool = asyncio.run(_stream_through_go())
     finally:
@@ -272,7 +272,7 @@ def _streaming_panel(sp: dict) -> Panel:
 # the command
 # --------------------------------------------------------------------------- #
 def run_push(path: str = ".", simulate_regression: bool = False, samples: int | None = None,
-             db: str = DUCKDB_PATH, provision: bool = True) -> int:
+             db: str = DUCKDB_PATH, provision: bool = True, api_key: str | None = None) -> int:
     p = Path(path).resolve()
     if not p.is_dir():
         console.print(f"[red]✗[/] not a directory: {p}")
@@ -311,12 +311,21 @@ def run_push(path: str = ".", simulate_regression: bool = False, samples: int | 
                                 f"Start it with: [dim]docker compose -f deploy/docker-compose.yml up -d postgres[/]",
                                 title="② preview", border_style="red"))
             return 3
+        from agentctl.auth.principal import AuthError, resolve_principal
+        try:
+            principal = resolve_principal(conn, api_key).require("developer")
+        except AuthError as e:
+            console.print(Panel(f"[red]auth denied[/]: {e}", title="② preview", border_style="red"))
+            return 4
+        project_id = principal.project_id
+        console.print(f"[dim]   principal [yellow]{principal.name}[/] · role={principal.role} · "
+                      f"project={project_id}[/]")
         from agentctl.control.webhook import handle_push, make_push_payload, teardown_preview
         from agentctl.runtime.isolated import ProcessRuntime
         runtime = ProcessRuntime()
         with console.status("[cyan]provisioning isolated preview…[/]", spinner="dots"):
             res = handle_push(conn, make_push_payload(sha, ref="refs/heads/preview", repo=name,
-                              changed=files, version_tag="preview"),
+                              changed=files, version_tag="preview"), project_id=project_id,
                               provision=provision, runtime=runtime if provision else None,
                               agent_kind=agent_kind)
         dep_id, endpoint = res["deployment_id"], res.get("endpoint")
@@ -330,7 +339,7 @@ def run_push(path: str = ".", simulate_regression: bool = False, samples: int | 
         # ── 2′. streaming proof through the Go data plane (streaming agents) ──
         if streaming and provision and endpoint:
             try:
-                console.print(_streaming_panel(_streaming_proof(conn, dep_id, sha, name)))
+                console.print(_streaming_panel(_streaming_proof(conn, dep_id, sha, name, project_id)))
             except Exception as e:
                 console.print(Panel(f"[yellow]streaming proof error[/]: {e}",
                                     title="②′ live stream", box=box.ROUNDED, border_style="yellow"))
@@ -347,7 +356,7 @@ def run_push(path: str = ".", simulate_regression: bool = False, samples: int | 
         if decision == "ALLOW":
             conn.commit()
             from agentctl.rollback import routing
-            routing.flip_routing(conn, DEMO_PROJECT_ID, dep_id, reason=f"merge:{sha}", actor="push")
+            routing.flip_routing(conn, project_id, dep_id, reason=f"merge:{sha}", actor="push")
             url = f"https://{name}-{sha[:8]}.agents.live"
             console.print(Panel(
                 f"[bold green]✅  PR MERGED[/]  →  promoted to 100% live\n\n"
@@ -385,10 +394,12 @@ def push(
                                               help="simulate an inferior agent (-> PR BLOCKED)"),
     samples: int = typer.Option(None, "--samples", help="override eval sample count"),
     no_provision: bool = typer.Option(False, "--no-provision", help="skip the isolated preview"),
+    api_key: str = typer.Option(None, "--api-key", envvar="AGENTCTL_API_KEY",
+                                help="API key for the target project (else bootstrap)"),
 ):
     """Package an agent dir, preview it, run the live eval-gate, and merge or block."""
     raise typer.Exit(run_push(path=path, simulate_regression=simulate_regression,
-                              samples=samples, provision=not no_provision))
+                              samples=samples, provision=not no_provision, api_key=api_key))
 
 
 if __name__ == "__main__":

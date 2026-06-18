@@ -87,13 +87,24 @@ def seed(conn: psycopg.Connection, project_id: str = DEMO_PROJECT_ID) -> dict:
     # B goes 100% live (deploy).
     routing.flip_routing(conn, project_id, b_id, reason=f"deploy:{SHA_B}", actor="seed", notify=False)
 
-    # Initialize the FUNCTIONAL external-store mocks to B's live coordinates.
-    JsonBackend().save({})   # reset the simulated external state
-    _vec.upsert("proj-a1-ns-v36", range(50), snapshot_id="snap-proj-a1-ns-v36")  # A's collection
-    _vec.upsert("proj-a1-ns-v37", range(80), snapshot_id="snap-proj-a1-ns-v37")  # B's collection
-    _vec.set_alias("proj-a1-ns-v37")                                              # live = B
-    _mem.append_many(1180, lambda i: SHA_A if i < 1000 else SHA_B)               # txn log (A:0-999, B:1000-1179)
-    _mem.set_head(1180, 1180)                                                     # HEAD = B
+    # Initialize the external state to B's live coordinates, on the configured backend. The
+    # relational-schema mock stays the JSON stub in both backends (its rollback is a
+    # migration-refusal, independent of the vector/memory backend).
+    from agentctl.config import STATE_BACKEND
+    if STATE_BACKEND == "pgvector":
+        from agentctl.rollback.stores.memory_pg import PgMemoryStore
+        from agentctl.rollback.stores.vector_pg import PgVectorStore
+        vec, mem = PgVectorStore(project_id, conn), PgMemoryStore(project_id, conn)
+        vec.reset(); mem.reset()
+    else:
+        JsonBackend().save({})   # reset the simulated external state
+        vec, mem = _vec, _mem
+    vec.upsert("proj-a1-ns-v36", range(50), snapshot_id="snap-proj-a1-ns-v36")  # A's collection
+    vec.upsert("proj-a1-ns-v37", range(80), snapshot_id="snap-proj-a1-ns-v37")  # B's collection
+    vec.set_alias("proj-a1-ns-v37")                                             # live = B
+    mem.append_many(1180, lambda i: SHA_A if i < 1000 else SHA_B)              # txn log (A:0-999, B:1000-1179)
+    mem.set_head(1180, 1180)                                                    # HEAD = B
     _sch.set_version(37)
+    conn.commit()
 
     return {"project_id": project_id, "A": {"id": a_id, "sha": SHA_A}, "B": {"id": b_id, "sha": SHA_B}}
