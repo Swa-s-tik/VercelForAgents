@@ -9,6 +9,19 @@ description = "A unified GitOps control plane for AI agents: statistical eval-ga
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
+keywords = ["ai-agents", "llm", "gitops", "eval", "grpc", "rollback", "control-plane", "mlops"]
+authors = [{ name = "agentctl authors" }]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Build Tools",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
   "grpcio>=1.60",
   "grpcio-tools>=1.60",
@@ -28,11 +41,21 @@ dependencies = [
 # managed vector backend (AGENTCTL_STATE_BACKEND=qdrant); core install stays slim.
 qdrant = ["qdrant-client>=1.7"]
 
+[project.urls]
+Homepage = "https://github.com/Swa-s-tik/VercelForAgents"
+Repository = "https://github.com/Swa-s-tik/VercelForAgents"
+Changelog = "https://github.com/Swa-s-tik/VercelForAgents/blob/main/CHANGELOG.md"
+Issues = "https://github.com/Swa-s-tik/VercelForAgents/issues"
+
 [project.scripts]
 agentctl = "agentctl.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["agentctl*"]
+
+[tool.setuptools.package-data]
+# runtime data files (schema DDL read by apply_schema / the CLI) must ship in the wheel.
+"*" = ["*.sql"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
