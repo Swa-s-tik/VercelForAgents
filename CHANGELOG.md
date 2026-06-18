@@ -4,6 +4,15 @@ All notable changes to agentctl are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **CI** (`.github/workflows/ci.yml`): GitHub Actions runs the two-runtime gate on every push to
+  `main` and every PR — Python tests against a pgvector Postgres service, plus the Go data-plane
+  build and `make conformance` (golden-wire wire-parity check).
+- **`LICENSE`**: the full Apache-2.0 text (the license was already declared in `pyproject.toml`).
+- CI status badge in the README.
+
 ## [1.0.0] — 2026-06-18
 
 The production-hardening pass (`docs/ROADMAP_1_0.md`): multi-tenant RBAC, real pgvector/memory state
