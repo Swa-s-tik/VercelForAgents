@@ -7,6 +7,13 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Qdrant vector state store** (post-1.0): a second managed vector backend behind the `StateStore`
+  protocol, selected via `AGENTCTL_STATE_BACKEND=qdrant`. Uses Qdrant's native collection aliases
+  for the alias-swap rollback (historical collections preserved), reusing the exact digest contract
+  so the rollback orchestrator is unchanged. Optional dep (`pip install 'agentctl[qdrant]'`) +
+  optional `--profile qdrant` compose service; default backend stays `json`. New:
+  `agentctl/rollback/stores/qdrant_store.py`, `tests/test_qdrant.py` (self-skips without the
+  client/server), `docs/design/QDRANT_STATE_STORE.md`.
 - **CI** (`.github/workflows/ci.yml`): GitHub Actions runs the two-runtime gate on every push to
   `main` and every PR — Python tests against a pgvector Postgres service, plus the Go data-plane
   build and `make conformance` (golden-wire wire-parity check).

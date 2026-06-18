@@ -62,6 +62,16 @@ services:
       schema-init:
         condition: service_completed_successfully
 
+  # ----- optional managed vector backend (Qdrant) -----
+  # Off by default; bring up with:  docker compose --profile qdrant up -d
+  # Then: AGENTCTL_STATE_BACKEND=qdrant agentctl rollback seed|run ...
+  qdrant:
+    image: qdrant/qdrant:v1.12.5
+    profiles: ["qdrant"]
+    ports:
+      - "6333:6333"   # REST
+      - "6334:6334"   # gRPC
+
   # ----- optional telemetry warehouse + dashboards (Workstream 3) -----
   # Off by default; bring up with:  docker compose --profile telemetry up -d
   # The default 5-minute path stays plain Postgres (TELEMETRY_BACKEND=postgres).

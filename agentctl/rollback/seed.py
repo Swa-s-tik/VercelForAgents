@@ -88,16 +88,20 @@ def seed(conn: psycopg.Connection, project_id: str = DEMO_PROJECT_ID) -> dict:
     routing.flip_routing(conn, project_id, b_id, reason=f"deploy:{SHA_B}", actor="seed", notify=False)
 
     # Initialize the external state to B's live coordinates, on the configured backend. The
-    # relational-schema mock stays the JSON stub in both backends (its rollback is a
+    # relational-schema mock stays the JSON stub in every backend (its rollback is a
     # migration-refusal, independent of the vector/memory backend).
     from agentctl.config import STATE_BACKEND
+    JsonBackend().save({})       # reset the JSON-backed mocks (schema in all backends; memory/vector when default)
     if STATE_BACKEND == "pgvector":
         from agentctl.rollback.stores.memory_pg import PgMemoryStore
         from agentctl.rollback.stores.vector_pg import PgVectorStore
         vec, mem = PgVectorStore(project_id, conn), PgMemoryStore(project_id, conn)
         vec.reset(); mem.reset()
+    elif STATE_BACKEND == "qdrant":
+        from agentctl.rollback.stores.qdrant_store import QdrantStore
+        vec, mem = QdrantStore(project_id), _mem      # Qdrant vector + JSON memory stub
+        vec.reset()
     else:
-        JsonBackend().save({})   # reset the simulated external state
         vec, mem = _vec, _mem
     vec.upsert("proj-a1-ns-v36", range(50), snapshot_id="snap-proj-a1-ns-v36")  # A's collection
     vec.upsert("proj-a1-ns-v37", range(80), snapshot_id="snap-proj-a1-ns-v37")  # B's collection
