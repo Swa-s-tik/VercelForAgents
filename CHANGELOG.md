@@ -7,6 +7,11 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **PyPI packaging** (post-1.0). `pyproject.toml` now ships the runtime `.sql` schema files as
+  package data (so `apply_schema` works from a `pip`-installed wheel), plus PyPI metadata
+  (classifiers, keywords, project URLs). Validated locally: `python -m build` → wheel + sdist,
+  `twine check` PASSED, and a clean-venv install resolves the CLI entry point, core imports, and all
+  four schema files. Ready to `twine upload` when the package name is claimed.
 - **Helm chart** (post-1.0). `deploy/helm/agentctl` deploys the core 3-tier (Postgres + Go gateway +
   Python control plane) to Kubernetes, mirroring the default compose topology. Ordering is enforced
   by init-containers (schema-init Job waits for Postgres; gateway/control plane wait for the schema
