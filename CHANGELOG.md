@@ -4,10 +4,13 @@ All notable changes to agentctl are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — Road to 1.0
+## [1.0.0] — 2026-06-18
 
-The production-hardening pass (`docs/ROADMAP_1_0.md`). All additions are backward-compatible: the
-zero-config demo and the existing test suite are unchanged.
+The production-hardening pass (`docs/ROADMAP_1_0.md`): multi-tenant RBAC, real pgvector/memory state
+stores, a ClickHouse + Grafana telemetry stack, and a cross-runtime proto conformance suite. All
+additions are backward-compatible — the zero-config demo and the prior test suite are unchanged.
+This is the first stable release: the frozen `Frame` header, the `StateStore` protocol, and the
+HTTP/gRPC auth contract are now covered by semantic versioning.
 
 ### Added
 - **Golden-wire proto conformance suite** (Workstream 4). Cross-runtime verification that the Python

@@ -107,7 +107,10 @@ docker compose up --build        # Postgres + Go gateway + Python control plane
 |---|---|
 | **Eval-gating** | A **non-inferiority gate** on a paired win/loss/tie signal — Wilson score interval decides BLOCK/ALLOW; **Wald SPRT** stops early (blocks an inferior agent after ~80 of 1000 samples). Fixes the naïve "win-rate < 52% AND p > 0.05" rule, which is statistically backwards. |
 | **Streaming gateway** | A `grpc.aio` reference proxy **and** a compiled **Go data plane** behind a frozen proto: per-session sticky canary, shadow mirroring (drop-on-full), token streaming, WebSocket edge with mid-stream interrupts. ~580 MB/s on 1 MB frames. |
-| **Stateful rollback** | Only the routing flip is a hard ACID transaction (atomic, `LISTEN/NOTIFY`); state realignment is per-pointer idempotent. Reversibility is **schema-enforced** — the system can't claim a payment is reversible. |
+| **Stateful rollback** | Only the routing flip is a hard ACID transaction (atomic, `LISTEN/NOTIFY`); state realignment is per-pointer idempotent. Reversibility is **schema-enforced** — the system can't claim a payment is reversible. Real **pgvector** + Postgres event-sourced memory backends (`AGENTCTL_STATE_BACKEND=pgvector`). |
+| **Multi-tenant RBAC** | Hashed **API keys** with `viewer/developer/admin/owner` roles, enforced at HTTP, gRPC, and CLI. Zero-config by default (a seeded bootstrap key); `AGENTCTL_REQUIRE_KEY=1` to enforce. |
+| **Telemetry** | OTel spans → Postgres buffer by default; flip `TELEMETRY_BACKEND=clickhouse` for a **ClickHouse + Grafana** warehouse (optional `--profile telemetry` compose stack with provisioned dashboards). |
+| **Wire conformance** | A golden-wire suite proves the Python proxy and the Go data plane are byte-identical on the frozen header + decode-interoperable (`make conformance`). |
 | **Developer UX** | `agentctl push` — pack → preview → live eval → merge/block, with a rich live terminal. |
 
 ## Project layout
@@ -124,11 +127,14 @@ examples/support_agent/ the flagship streaming, tool-calling example
 docs/ARCHITECTURE_PRD.md  full design                tests/  demo/
 ```
 
-## Status
+## Status — 1.0
 
 The three verticals, the Go cutover, the streaming demo, and the developer CLI are runnable and
-tested. Production hardening (multi-tenant RBAC, managed vector/memory adapters, ClickHouse
-dashboards, a golden-wire proto conformance suite) is the road to 1.0 — see `docs/ARCHITECTURE_PRD.md`.
+tested — and the four production-hardening workstreams (multi-tenant RBAC, real pgvector/memory
+state stores, ClickHouse + Grafana telemetry, and a golden-wire proto conformance suite) have
+landed. See `docs/ROADMAP_1_0.md` and `docs/design/*.md` for the deep-dives, and `CHANGELOG.md` for
+the 1.0.0 notes. Every addition is opt-in: a plain `docker compose up` + `agentctl push` still needs
+no API key, no pgvector, and no ClickHouse.
 
 ## License
 
