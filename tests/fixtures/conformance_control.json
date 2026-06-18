@@ -1,0 +1,45 @@
+{
+  "_doc": "Control-plane/Health conformance vectors. golden_hex = Python deterministic marshal. Go decodes these (and Python decodes Go's wire) into the same logical message. Regenerate via `python tests/conformance_control.py`.",
+  "messages": [
+    {
+      "name": "ResolveRouteRequest",
+      "golden_hex": "0a056465702d37"
+    },
+    {
+      "name": "WatchRequest",
+      "golden_hex": "0a056465702d370a056465702d38"
+    },
+    {
+      "name": "ShadowPolicy",
+      "golden_hex": "0801100a1832"
+    },
+    {
+      "name": "Backend",
+      "golden_hex": "0a03622d31120f6c6f63616c686f73743a353030353118a84622027641280132060801100a1832"
+    },
+    {
+      "name": "RouteTable",
+      "golden_hex": "0a056465702d37102a1a270a03622d31120f6c6f63616c686f73743a353030353118a84622027641280132060801100a18321a250a03622d32120f6c6f63616c686f73743a353030353218e8072202764232060801100a183222280a03732d31120f6c6f63616c686f73743a35303035332206736861646f77280132060801100a1832280130ac02"
+    },
+    {
+      "name": "TelemetryEvent",
+      "golden_hex": "0a02733112056465702d371a027641220673747265616d2a110a066672616d65731100000000000035402a150a0a6c6174656e63795f6d73110000000000c04040320c0a06726567696f6e12027573388180a8b1e39fe7cb17"
+    },
+    {
+      "name": "TelemetryBatch",
+      "golden_hex": "0a590a02733112056465702d371a027641220673747265616d2a110a066672616d65731100000000000035402a150a0a6c6174656e63795f6d73110000000000c04040320c0a06726567696f6e12027573388180a8b1e39fe7cb170a590a02733212056465702d371a027642220673747265616d2a110a066672616d65731100000000000035402a150a0a6c6174656e63795f6d73110000000000c04040320c0a06726567696f6e12027573388180a8b1e39fe7cb17"
+    },
+    {
+      "name": "TelemetryAck",
+      "golden_hex": "0802"
+    },
+    {
+      "name": "HealthRequest",
+      "golden_hex": "0a056465702d37"
+    },
+    {
+      "name": "HealthReply",
+      "golden_hex": "080110031864220201042a027641"
+    }
+  ]
+}

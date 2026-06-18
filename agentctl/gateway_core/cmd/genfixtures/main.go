@@ -71,9 +71,49 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Printf("\nwrote %s\n", outPath)
-	if fail > 0 {
-		fmt.Fprintf(os.Stderr, "%d frame(s) failed the Go↔Python wire contract\n", fail)
+
+	// control-plane / Health messages: same contract (decode interop) + emit Go wire
+	cspecs, err := gw.LoadControlSpecs(gw.ControlFixturePath())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "load control specs: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("all %d frames satisfy the Go↔Python wire contract\n", len(specs))
+	cWire := map[string]string{}
+	for _, s := range cspecs {
+		m, err := gw.BuildControl(s.Name)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: build: %v\n", s.Name, err)
+			os.Exit(1)
+		}
+		h, _ := gw.MarshalHex(m)
+		cWire[s.Name] = h
+		raw, _ := hex.DecodeString(s.GoldenHex)
+		dec := m.ProtoReflect().New().Interface()
+		ok := proto.Unmarshal(raw, dec) == nil
+		if ok {
+			fromPy, _ := gw.MarshalHex(dec)
+			ok = fromPy == h
+		}
+		if !ok {
+			fail++
+		}
+		fmt.Printf("%-26s decode=%-5v\n", s.Name, ok)
+	}
+	cPath := filepath.Join(filepath.Dir(path), "conformance_control_go_wire.json")
+	cblob, _ := json.MarshalIndent(map[string]any{
+		"_doc":     "Go deterministic marshal per control/health message; Python decodes these to prove it reads Go's wire.",
+		"messages": cWire,
+	}, "", "  ")
+	if err := os.WriteFile(cPath, append(cblob, '\n'), 0o644); err != nil {
+		fmt.Fprintf(os.Stderr, "write control go wire: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("wrote %s\n", cPath)
+
+	if fail > 0 {
+		fmt.Fprintf(os.Stderr, "%d message(s) failed the Go↔Python wire contract\n", fail)
+		os.Exit(1)
+	}
+	fmt.Printf("all %d frames + %d control messages satisfy the Go↔Python wire contract\n",
+		len(specs), len(cspecs))
 }

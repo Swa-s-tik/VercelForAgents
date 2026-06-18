@@ -7,6 +7,12 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Control-plane + Health proto conformance** (post-1.0). Extends the golden-wire suite beyond the
+  `Frame` to the `ControlPlane` service messages (RouteTable/Backend/ShadowPolicy, ResolveRoute,
+  Watch, TelemetryBatch/Event/Ack) and Health — exercising nested messages, repeated fields, a
+  `map<string,double>`, and enums. Cross-runtime decode interop both directions. New:
+  `tests/conformance_control.py`, `gateway_core/internal/gateway/conformance_control.go`, fixtures,
+  and `TestControlConformance` / `test_control_*`. The whole wire contract is now verified.
 - **Full RBAC enforcement on the Go data plane** (post-1.0). The compiled Go gateway now validates
   `x-api-key` against `controlplane.api_keys` (sha256 lookup, revoked excluded) and enforces tenant
   (`project_id`) + minimum role, with a 15s TTL cache to keep Postgres off the hot path — upgrading

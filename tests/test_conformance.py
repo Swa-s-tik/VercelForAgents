@@ -20,12 +20,21 @@ import json
 import pytest
 
 from agentctl.gen import load
+from tests.conformance_control import FIXTURE as CTRL_FIXTURE, build_control
 from tests.conformance_frames import FIXTURE, build_frame, header_hex
 
-pb = load()[0]
+pb, dp, _dpg, cp, _cpg = load()
 FRAMES = json.loads(FIXTURE.read_text())["frames"]
 IDS = [f["name"] for f in FRAMES]
 GO_WIRE = FIXTURE.parent / "conformance_go_wire.json"
+
+CTRL = json.loads(CTRL_FIXTURE.read_text())["messages"]
+CTRL_IDS = [m["name"] for m in CTRL]
+CTRL_GO_WIRE = CTRL_FIXTURE.parent / "conformance_control_go_wire.json"
+
+
+def _ctrl(name):
+    return build_control(pb, dp, cp, name)
 
 
 @pytest.mark.parametrize("spec", FRAMES, ids=IDS)
@@ -68,3 +77,29 @@ def test_all_payload_kinds_and_header_covered():
     assert kinds == {"text", "tool_call", "tool_result", "control", "turn_end", "binary",
                      "approval_req"}
     assert {f["direction"] for f in FRAMES} >= {"CLIENT_TO_AGENT", "AGENT_TO_CLIENT"}
+
+
+# ── control-plane / Health messages (nested messages, repeated, map<string,double>, enums) ──
+@pytest.mark.parametrize("spec", CTRL, ids=CTRL_IDS)
+def test_control_marshal_locks_golden(spec):
+    got = _ctrl(spec["name"]).SerializeToString(deterministic=True).hex()
+    assert got == spec["golden_hex"], f"{spec['name']}: control wire drift vs golden"
+
+
+@pytest.mark.parametrize("spec", CTRL, ids=CTRL_IDS)
+def test_control_roundtrip_stable(spec):
+    expected = _ctrl(spec["name"])
+    parsed = type(expected)()
+    parsed.ParseFromString(bytes.fromhex(spec["golden_hex"]))
+    assert parsed.SerializeToString(deterministic=True) == expected.SerializeToString(deterministic=True)
+
+
+@pytest.mark.skipif(not CTRL_GO_WIRE.exists(),
+                    reason="run `make fixtures` to emit Go control wire")
+@pytest.mark.parametrize("spec", CTRL, ids=CTRL_IDS)
+def test_python_decodes_go_control_wire(spec):
+    go_hex = json.loads(CTRL_GO_WIRE.read_text())["messages"][spec["name"]]
+    expected = _ctrl(spec["name"])
+    parsed = type(expected)()
+    parsed.ParseFromString(bytes.fromhex(go_hex))
+    assert parsed.SerializeToString(deterministic=True) == expected.SerializeToString(deterministic=True)

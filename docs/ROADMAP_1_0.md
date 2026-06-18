@@ -34,5 +34,7 @@ local commit, without breaking the existing zero-config demo or test suite.
   ([GO_GATEWAY_RBAC](design/GO_GATEWAY_RBAC.md)). The Go gateway now validates keys against Postgres
   (sha256 lookup + tenant/role checks + a TTL cache), not just a presence check.
 - OTLP-collector telemetry path alongside the native ClickHouse exporter.
-- Control-plane proto messages in the conformance suite (1.0 covers the `Frame` hot path).
+- ✅ **Control-plane + Health proto messages in the conformance suite** — delivered
+  ([PROTO_CONFORMANCE](design/PROTO_CONFORMANCE.md)). The whole wire contract (Frame + control plane
+  + Health) is now cross-runtime decode-verified.
 - Helm chart / k8s operator; hosted GitHub App (1.0 uses the webhook emulator).

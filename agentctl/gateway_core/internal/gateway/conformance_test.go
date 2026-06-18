@@ -63,3 +63,38 @@ func TestConformance(t *testing.T) {
 		})
 	}
 }
+
+// TestControlConformance proves Go decodes the Python control-plane/Health wire into the same
+// logical message (compared via Go's own canonical marshal — order-independent).
+func TestControlConformance(t *testing.T) {
+	specs, err := LoadControlSpecs(ControlFixturePath())
+	if err != nil {
+		t.Fatalf("load control specs: %v", err)
+	}
+	if len(specs) == 0 {
+		t.Fatal("no control specs loaded")
+	}
+	for _, s := range specs {
+		s := s
+		t.Run(s.Name, func(t *testing.T) {
+			built, err := BuildControl(s.Name)
+			if err != nil {
+				t.Fatalf("build: %v", err)
+			}
+			raw, err := hex.DecodeString(s.GoldenHex)
+			if err != nil {
+				t.Fatalf("bad golden hex: %v", err)
+			}
+			decoded := built.ProtoReflect().New().Interface() // fresh empty message of same type
+			if err := proto.Unmarshal(raw, decoded); err != nil {
+				t.Fatalf("Go cannot decode Python wire: %v", err)
+			}
+			fromPython, _ := MarshalHex(decoded)
+			fromSpec, _ := MarshalHex(built)
+			if fromPython != fromSpec {
+				t.Fatalf("Go decode of Python wire != Go build\n  decoded = %s\n  built   = %s",
+					fromPython, fromSpec)
+			}
+		})
+	}
+}

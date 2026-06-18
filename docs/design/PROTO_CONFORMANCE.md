@@ -70,10 +70,20 @@ Green = the frozen header is byte-identical and both runtimes decode each other 
 all 9 vectors. If either runtime's encoding drifts (a proto edit, a library bump that changes
 canonical order), the relevant assertion goes red.
 
+## Control-plane + Health messages (post-1.0)
+
+The suite now also covers the `ControlPlane` service messages (`RouteTable`/`Backend`/`ShadowPolicy`,
+`ResolveRouteRequest`, `WatchRequest`, `TelemetryBatch`/`Event`/`Ack`) and the `Health` messages —
+exercising nested messages, repeated fields, a `map<string,double>` (a new wire shape vs the
+`Frame`'s string map), and enums. There's no frozen header here, so the contract is **cross-runtime
+decode interop both directions** (Go decodes the Python golden; Python decodes Go's wire). Builders:
+`tests/conformance_control.py` + `gateway_core/internal/gateway/conformance_control.go`; fixtures
+`tests/fixtures/conformance_control{,_go_wire}.json`; verified by `TestControlConformance` (Go) and
+`test_control_*` (Python). Regenerate: `python tests/conformance_control.py` + `make fixtures`.
+
 ## Boundaries / future
 
-- The suite covers the `Frame` envelope (the hot path). The control-plane messages
-  (`controlplane.proto`) are not yet vectored — a v1.1 add.
+- The whole agentctl wire contract (Frame hot path + control plane + Health) is now vectored.
 - If a future need for a *canonical cross-runtime byte form* arises (e.g. content-addressing frames),
   it must be built on an explicit field-ordered encoder, not on `deterministic=true`. Documented here
   so nobody re-introduces the naive assumption.
