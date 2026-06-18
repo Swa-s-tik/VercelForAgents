@@ -1,0 +1,32 @@
+# agentctl Helm values. The core 3-tier (Postgres + Go gateway + Python control plane) mirrors the
+# default `docker compose up` topology. Telemetry (ClickHouse/Grafana) and Qdrant remain
+# compose-profile opt-ins; they're out of this core chart.
+
+postgres:
+  image: pgvector/pgvector:pg16   # superset of pg16; the pgvector state backend needs it
+  user: agentctl
+  password: agentctl
+  db: agentctl
+  storage: 1Gi
+  resources: {}
+
+# images for the two agentctl services. Build + load them into your cluster (see chart README);
+# pullPolicy Never keeps a local/kind cluster from trying to pull a non-published image.
+controlplane:
+  image: agentctl/controlplane:dev
+  pullPolicy: IfNotPresent
+  replicas: 1
+  port: 8088
+  resources: {}
+
+gateway:
+  image: agentctl/gateway:dev
+  pullPolicy: IfNotPresent
+  replicas: 1
+  port: 50050
+  projectId: "00000000-0000-0000-0000-0000000000a1"
+  requireKey: false               # set true to enforce API keys at the gateway
+  resources: {}
+
+# require an API key on the HTTP surfaces (control plane). Default permissive (zero-config).
+requireKey: false

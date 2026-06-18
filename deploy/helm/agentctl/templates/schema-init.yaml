@@ -1,0 +1,29 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "agentctl.fullname" . }}-schema-init
+  labels: {{- include "agentctl.labels" . | nindent 4 }}
+    app.kubernetes.io/component: schema-init
+spec:
+  backoffLimit: 20
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: schema-init
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-postgres
+          image: {{ .Values.postgres.image }}
+          command:
+            - sh
+            - -c
+            - until pg_isready -h {{ include "agentctl.pgHost" . }} -U {{ .Values.postgres.user }}; do echo "waiting for postgres"; sleep 2; done
+      containers:
+        - name: schema
+          image: {{ .Values.controlplane.image }}
+          imagePullPolicy: {{ .Values.controlplane.pullPolicy }}
+          command: ["agentctl", "rollback", "schema"]
+          env:
+            - { name: AGENTCTL_PG_DSN, value: {{ include "agentctl.pgDsn" . | quote }} }

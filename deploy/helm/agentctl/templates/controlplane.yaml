@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agentctl.fullname" . }}-controlplane
+  labels: {{- include "agentctl.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controlplane
+spec:
+  replicas: {{ .Values.controlplane.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: controlplane
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: controlplane
+    spec:
+      initContainers:
+        - name: wait-schema
+          image: {{ .Values.postgres.image }}
+          command:
+            - sh
+            - -c
+            - |
+              until psql "{{ include "agentctl.pgDsn" . }}" -tAc "SELECT to_regclass('controlplane.routing_tables') IS NOT NULL" 2>/dev/null | grep -q t; do echo "waiting for schema"; sleep 2; done
+      containers:
+        - name: controlplane
+          image: {{ .Values.controlplane.image }}
+          imagePullPolicy: {{ .Values.controlplane.pullPolicy }}
+          env:
+            - { name: AGENTCTL_PG_DSN, value: {{ include "agentctl.pgDsn" . | quote }} }
+            {{- if .Values.requireKey }}
+            - { name: AGENTCTL_REQUIRE_KEY, value: "1" }
+            {{- end }}
+          ports:
+            - containerPort: {{ .Values.controlplane.port }}
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.controlplane.port }}
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          resources: {{- toYaml .Values.controlplane.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "agentctl.fullname" . }}-controlplane
+  labels: {{- include "agentctl.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: controlplane
+  ports:
+    - { port: {{ .Values.controlplane.port }}, targetPort: {{ .Values.controlplane.port }} }
