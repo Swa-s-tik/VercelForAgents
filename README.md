@@ -2,6 +2,8 @@
 
 # agentctl — Vercel for AI Agents
 
+[![CI](https://github.com/Swa-s-tik/VercelForAgents/actions/workflows/ci.yml/badge.svg)](https://github.com/Swa-s-tik/VercelForAgents/actions/workflows/ci.yml)
+
 **Ship an agent with one command: `agentctl push`.**
 Preview deploys, statistical eval-gating, a streaming gRPC gateway, and 1-click stateful
 rollback — one open-source control plane instead of five stitched-together SaaS products.
