@@ -86,13 +86,16 @@ class PostgresSpanExporter(SpanExporter):
 def _make_exporter(backend: str) -> SpanExporter:
     if backend == "postgres":
         return PostgresSpanExporter()
-    if backend in ("otlp", "clickhouse"):
+    if backend == "clickhouse":
+        from agentctl.telemetry.clickhouse_exporter import ClickHouseSpanExporter
+        return ClickHouseSpanExporter()  # native HTTP insert into agentctl.otel_spans
+    if backend == "otlp":
         try:
             from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
             return OTLPSpanExporter()
         except Exception:
-            print(f"[telemetry] OTLP exporter unavailable; falling back to console "
-                  f"(install opentelemetry-exporter-otlp for backend={backend})")
+            print("[telemetry] OTLP exporter unavailable; falling back to console "
+                  "(install opentelemetry-exporter-otlp for backend=otlp)")
             return ConsoleSpanExporter()
     return ConsoleSpanExporter()
 

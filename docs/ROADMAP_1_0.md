@@ -12,7 +12,7 @@ local commit, without breaking the existing zero-config demo or test suite.
 | 4 | Golden-wire proto conformance | ✅ done | [PROTO_CONFORMANCE](design/PROTO_CONFORMANCE.md) |
 | 2 | API keys + multi-tenant RBAC | ✅ done | [AUTH_RBAC](design/AUTH_RBAC.md) |
 | 1 | pgvector state stores | ✅ done | [PGVECTOR_STATE_STORE](design/PGVECTOR_STATE_STORE.md) |
-| 3 | ClickHouse + Grafana telemetry | ⏳ planned | [TELEMETRY_CLICKHOUSE_GRAFANA](design/TELEMETRY_CLICKHOUSE_GRAFANA.md) |
+| 3 | ClickHouse + Grafana telemetry | ✅ done | [TELEMETRY_CLICKHOUSE_GRAFANA](design/TELEMETRY_CLICKHOUSE_GRAFANA.md) |
 | 5 | Governance + v1.0.0 | ⏳ planned | this file + CHANGELOG |
 
 ## The invariants that hold across the whole pass

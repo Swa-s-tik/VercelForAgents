@@ -22,6 +22,9 @@ VECTOR_DIM = int(os.environ.get("AGENTCTL_VECTOR_DIM", "8"))
 # Telemetry boundary: 'postgres' (default, short buffer) | 'clickhouse' (prod warehouse).
 TELEMETRY_BACKEND = os.environ.get("TELEMETRY_BACKEND", "postgres")
 CLICKHOUSE_DSN = os.environ.get("CLICKHOUSE_DSN", "")
+CLICKHOUSE_HTTP_ENDPOINT = os.environ.get("CLICKHOUSE_HTTP_ENDPOINT", "http://localhost:8123")
+CLICKHOUSE_USER = os.environ.get("CLICKHOUSE_USER", "agentctl")
+CLICKHOUSE_PASSWORD = os.environ.get("CLICKHOUSE_PASSWORD", "agentctl")
 OTEL_EXPORTER_OTLP_ENDPOINT = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "")
 
 # A fixed project id so the prototype demo is reproducible.

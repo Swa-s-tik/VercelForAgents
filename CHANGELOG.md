@@ -37,7 +37,14 @@ zero-config demo and the existing test suite are unchanged.
   `agentctl/rollback/stores/{schema_vector.sql,vector_pg.py,memory_pg.py}`, `tests/test_pgvector.py`,
   `docs/design/PGVECTOR_STATE_STORE.md`.
 
-<!-- subsequent workstreams appended here as they land: ClickHouse/Grafana -->
+- **ClickHouse + Grafana telemetry** (Workstream 3). A native `ClickHouseSpanExporter` (HTTP insert,
+  stdlib-only) wired into `_make_exporter` behind `TELEMETRY_BACKEND=clickhouse`, plus an optional
+  `telemetry` compose profile (dockerized ClickHouse with the warehouse schema auto-applied +
+  Grafana with a provisioned datasource and overview dashboard). Default stays `postgres` so the
+  5-minute setup is untouched. Fixed the aggregating MVs to parse float-formatted integer measures
+  (`toUInt64(toFloat64OrZero(...))`). New: `agentctl/telemetry/clickhouse_exporter.py`,
+  `deploy/{clickhouse,grafana}/*`, `tests/test_clickhouse_exporter.py`,
+  `docs/design/TELEMETRY_CLICKHOUSE_GRAFANA.md`.
 
 ## [0.1.0]
 

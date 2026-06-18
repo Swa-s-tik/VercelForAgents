@@ -61,3 +61,44 @@ services:
         condition: service_healthy
       schema-init:
         condition: service_completed_successfully
+
+  # ----- optional telemetry warehouse + dashboards (Workstream 3) -----
+  # Off by default; bring up with:  docker compose --profile telemetry up -d
+  # The default 5-minute path stays plain Postgres (TELEMETRY_BACKEND=postgres).
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    profiles: ["telemetry"]
+    environment:
+      CLICKHOUSE_DB: agentctl
+      CLICKHOUSE_USER: agentctl
+      CLICKHOUSE_PASSWORD: agentctl
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports:
+      - "8123:8123"   # HTTP (the native exporter)
+      - "9000:9000"   # native (Grafana datasource)
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    volumes:
+      - ./deploy/clickhouse/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8123/ping || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    profiles: ["telemetry"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: agentctl
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_INSTALL_PLUGINS: grafana-clickhouse-datasource
+    ports:
+      - "3001:3000"   # host 3001 -> grafana 3000 (avoid common :3000 dev-server clashes)
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      clickhouse:
+        condition: service_healthy

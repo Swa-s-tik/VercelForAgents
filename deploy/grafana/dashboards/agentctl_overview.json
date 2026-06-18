@@ -1,0 +1,72 @@
+{
+  "uid": "agentctl-overview",
+  "title": "agentctl — telemetry overview",
+  "tags": ["agentctl"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Spans ingested",
+      "type": "stat",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "agentctl-clickhouse" },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "agentctl-clickhouse" },
+          "queryType": "sql",
+          "rawSql": "SELECT count() AS spans FROM agentctl.otel_spans"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Token usage / hour",
+      "type": "timeseries",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "agentctl-clickhouse" },
+      "gridPos": { "h": 9, "w": 18, "x": 6, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "agentctl-clickhouse" },
+          "queryType": "sql",
+          "rawSql": "SELECT hour AS time, sum(prompt_tokens) AS prompt, sum(completion_tokens) AS completion FROM agentctl.token_usage_1h GROUP BY hour ORDER BY hour"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Stream latency p50/p95/p99 (ms)",
+      "type": "timeseries",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "agentctl-clickhouse" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 9 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "agentctl-clickhouse" },
+          "queryType": "sql",
+          "rawSql": "SELECT hour AS time, arrayElement(quantilesTDigestMerge(0.5,0.95,0.99)(latency_ms),1) AS p50, arrayElement(quantilesTDigestMerge(0.5,0.95,0.99)(latency_ms),2) AS p95, arrayElement(quantilesTDigestMerge(0.5,0.95,0.99)(latency_ms),3) AS p99 FROM agentctl.latency_1h GROUP BY hour ORDER BY hour"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Canary arm — frames out / hour",
+      "type": "timeseries",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "agentctl-clickhouse" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 9 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "agentctl-clickhouse" },
+          "queryType": "sql",
+          "rawSql": "SELECT hour AS time, canary_arm, sum(frames_out) AS frames_out, sum(shadow_dropped) AS shadow_dropped FROM agentctl.canary_arm_1h GROUP BY hour, canary_arm ORDER BY hour"
+        }
+      ]
+    }
+  ]
+}
