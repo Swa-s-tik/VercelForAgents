@@ -14,6 +14,11 @@ DUCKDB_PATH = os.environ.get("AGENTCTL_DUCKDB", ".agentctl/eval.duckdb")
 # separate CLI invocations and still share the simulated vector/memory/schema state.
 STATE_FILE = os.environ.get("AGENTCTL_STATE_FILE", ".agentctl/state/external_state.json")
 
+# State backend for the vector/memory stores: 'json' (default, file-backed stubs — zero infra) or
+# 'pgvector' (real pgvector + Postgres event-sourced memory; needs the pgvector image + schema).
+STATE_BACKEND = os.environ.get("AGENTCTL_STATE_BACKEND", "json")
+VECTOR_DIM = int(os.environ.get("AGENTCTL_VECTOR_DIM", "8"))
+
 # Telemetry boundary: 'postgres' (default, short buffer) | 'clickhouse' (prod warehouse).
 TELEMETRY_BACKEND = os.environ.get("TELEMETRY_BACKEND", "postgres")
 CLICKHOUSE_DSN = os.environ.get("CLICKHOUSE_DSN", "")

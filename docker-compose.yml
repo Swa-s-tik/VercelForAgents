@@ -6,7 +6,7 @@ x-pg-dsn: &pg_dsn postgresql://agentctl:agentctl@postgres:5432/agentctl
 
 services:
   postgres:
-    image: postgres:16
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: agentctl
       POSTGRES_PASSWORD: agentctl

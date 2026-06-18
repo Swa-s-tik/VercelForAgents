@@ -28,7 +28,16 @@ zero-config demo and the existing test suite are unchanged.
   CLI (`--api-key` + `agentctl auth create-key/list-keys/revoke-key`). New: `agentctl/auth/*`,
   `tests/test_auth.py`, `docs/design/AUTH_RBAC.md`.
 
-<!-- subsequent workstreams appended here as they land: pgvector, ClickHouse/Grafana -->
+- **Real pgvector state stores** (Workstream 1). The vector and memory `StateStore` stubs now have
+  production adapters: `PgVectorStore` (pgvector collections + an idempotent alias-swap restore) and
+  `PgMemoryStore` (Postgres event-sourced log + HEAD rewind), reusing the exact digest contract so
+  Vertical C's rollback orchestrator + Phase-3 verification are unchanged. Env-gated
+  (`AGENTCTL_STATE_BACKEND=pgvector`); default stays the file-backed stubs so offline tests need no
+  infra. Compose image is now `pgvector/pgvector:pg16` (a strict superset). New:
+  `agentctl/rollback/stores/{schema_vector.sql,vector_pg.py,memory_pg.py}`, `tests/test_pgvector.py`,
+  `docs/design/PGVECTOR_STATE_STORE.md`.
+
+<!-- subsequent workstreams appended here as they land: ClickHouse/Grafana -->
 
 ## [0.1.0]
 

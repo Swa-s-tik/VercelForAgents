@@ -26,6 +26,7 @@ def _cmd_schema(args) -> int:
 
     import agentctl.rollback as _pkg
     from agentctl.common.db import apply_schema, connect
+    from agentctl.config import STATE_BACKEND
     sql = str(Path(_pkg.__file__).with_name("schema_postgres.sql"))
     conn = connect()
     # owner-only, but check against the bootstrap principal (no DB read) since the tables may not
@@ -34,8 +35,13 @@ def _cmd_schema(args) -> int:
         conn.close()
         return 1
     n = apply_schema(conn, sql)
+    msg = f"applied schema ({n} statements) to controlplane"
+    if STATE_BACKEND == "pgvector":
+        vsql = str(Path(_pkg.__file__).parent / "stores" / "schema_vector.sql")
+        nv = apply_schema(conn, vsql)
+        msg += f"; pgvector state schema ({nv} statements) to vectorstore/memorystore"
     conn.close()
-    print(f"applied schema ({n} statements) to controlplane")
+    print(msg)
     return 0
 
 
