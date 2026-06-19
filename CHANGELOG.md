@@ -7,6 +7,15 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **GitHub-native eval-gate** (post-1.0). `agentctl gate --github` posts the gate verdict to a PR as a
+  **commit status** (mapped from the gate's own exit code: ALLOW -> success, BLOCK -> failure, so it
+  gates merge) plus a **PR comment** with the per-suite Wilson CIs - making "open a PR -> the agent is
+  quality-gated automatically" a real loop instead of the webhook emulator. `--dry-run` prints both
+  artifacts without calling the API; off-CI it is a safe no-op. stdlib-only poster
+  (`agentctl/gitops/github_gate.py`, injectable opener for tests). Ships a reusable composite action
+  (`.github/actions/agentctl-gate`) for other repos and a dogfood workflow
+  (`.github/workflows/eval-gate.yml`) that gates this repo's own PRs. New: `agentctl/gitops/*`,
+  `tests/test_github_gate.py`, `docs/design/GITOPS_PR_GATE.md`.
 - **Header-only zero-copy forwarding on the Go data plane** (post-1.0). An opt-in
   (`AGENTCTL_ZEROCOPY=1`) fast path that proxies Frames by touching the wire bytes directly instead
   of deserializing each one: it routes by scanning `session_id` (field 1) and tags

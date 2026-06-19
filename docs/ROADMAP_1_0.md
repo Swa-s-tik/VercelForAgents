@@ -26,6 +26,10 @@ local commit, without breaking the existing zero-config demo or test suite.
 
 ## Post-1.0 (deliberately deferred)
 
+- ✅ **GitHub-native eval-gate** - delivered ([GITOPS_PR_GATE](design/GITOPS_PR_GATE.md)).
+  `agentctl gate --github` posts the verdict to a PR as a commit status (gates merge) + a comment,
+  with a reusable composite action and a dogfood workflow on this repo. Makes "open a PR -> auto
+  quality-gate" a real loop, retiring the webhook-emulator stand-in for the GitOps surface.
 - ✅ **Qdrant** vector adapter behind the `StateStore` protocol - delivered
   ([QDRANT_STATE_STORE](design/QDRANT_STATE_STORE.md)). A Pinecone adapter is the remaining one.
 - ✅ **`users` + `role_bindings`** - delivered ([AUTH_RBAC](design/AUTH_RBAC.md)). A key can belong

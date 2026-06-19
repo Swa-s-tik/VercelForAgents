@@ -141,6 +141,7 @@ docker compose up --build        # Postgres + Go gateway + Python control plane
 | **Telemetry** | OTel spans → Postgres buffer by default; flip `TELEMETRY_BACKEND=clickhouse` for a **ClickHouse + Grafana** warehouse (optional `--profile telemetry` compose stack with provisioned dashboards). |
 | **Wire conformance** | A golden-wire suite proves the Python proxy and the Go data plane are byte-identical on the frozen header + decode-interoperable (`make conformance`). |
 | **Developer UX** | `agentctl push` - pack → preview → live eval → merge/block, with a rich live terminal. |
+| **GitOps gate** | `agentctl gate --github` posts the eval-gate verdict to a PR as a **commit status** (gates merge: ALLOW → success, BLOCK → failure) + a **comment** with the per-suite Wilson CIs. Ships a reusable GitHub Action + a workflow that dogfoods it on this repo's own PRs. |
 
 ## Project layout
 
