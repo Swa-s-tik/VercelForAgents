@@ -7,6 +7,10 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Forward rollout in the dashboard** (post-1.0). Each eligible deployment now has **canary 10%** and
+  **promote** buttons (next to rollback) that POST to `/api/rollout/{sha}/{pct}` -> `set_canary`, so the
+  web UI drives traffic forward and back - a symmetric control surface. New dashboard tests cover the
+  buttons + a canary-then-promote POST flow.
 - **Progressive rollout** (post-1.0). `agentctl rollback rollout <commit> --weight <pct>` rolls
   *forward* by percentage - the complement of rollback. A canary (`--weight` < 100) splits live
   traffic between the target and the current primary (shadows preserved); `--weight 100` is a full

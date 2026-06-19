@@ -70,3 +70,12 @@ read from `controlplane.otel_spans`. So the data plane's real behavior shows up 
 deployments and eval verdicts - the dashboard is now one surface for deploy + eval + traffic +
 rollback. Empty until traffic flows. Verified by a pure render test + an aggregation test that inserts
 spans for two arms and checks the per-arm streams/frames/latency, plus a live smoke.
+
+## Update: forward rollout actions
+
+The dashboard is now a symmetric control surface: alongside "rollback to this", each eligible
+deployment offers **canary 10%** and **promote** buttons that POST to `/api/rollout/{sha}/{pct}` ->
+`set_canary` (the same atomic routing flip, gateway-notified). So you can drive traffic forward
+(canary, then promote) or back (rollback) entirely from the UI. Verified by a render test (buttons
+only on eligible deploys) + a TestClient that canaries then promotes over seeded Postgres, plus a live
+smoke.

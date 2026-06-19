@@ -80,6 +80,21 @@ def _rollback_btn(d: dict) -> str:
             f'rollback to this</button>')
 
 
+def _rollout_btns(d: dict) -> str:
+    """Forward actions: canary a slice of traffic, or promote to 100%. Offered on a sealed deploy that
+    is not already serving 100% - the mirror of the rollback button (a full forward+back control)."""
+    eligible = d["status"] in ("ready", "active") and not (d["in_live_table"] and d["weight"] >= 10000)
+    if not eligible:
+        return ""
+    sha = _esc(d["git_commit_sha"])
+    short = _short(d["git_commit_sha"])
+    canary = (f'<button class="rb fwd" hx-post="/api/rollout/{sha}/10" hx-target="#dash" '
+              f'hx-swap="innerHTML" hx-confirm="Send 10% canary to {short}?">canary 10%</button>')
+    promote = (f'<button class="rb fwd" hx-post="/api/rollout/{sha}/100" hx-target="#dash" '
+               f'hx-swap="innerHTML" hx-confirm="Promote {short} to 100%?">promote</button>')
+    return canary + promote
+
+
 def deployments_table(deployments: list[dict], honesty: dict[int, dict],
                       verdicts: dict[str, dict] | None = None) -> str:
     if not deployments:
@@ -96,7 +111,7 @@ def deployments_table(deployments: list[dict], honesty: dict[int, dict],
             f"<td>{_arm_cell(d)}</td>"
             f"<td>{_honesty_cell(honesty.get(d['id']))}</td>"
             f'<td class="dim">{_esc(d["created_by"])}</td>'
-            f"<td>{_rollback_btn(d)}</td>"
+            f"<td>{_rollback_btn(d)}{_rollout_btns(d)}</td>"
             "</tr>")
     return (
         '<table><thead><tr>'
@@ -186,6 +201,8 @@ td{padding:10px;border-bottom:1px solid #141a24;vertical-align:middle}
 .tag.irrev{background:#3b1414;color:#f87171}
 button.rb{background:#1f6feb;color:#fff;border:0;border-radius:6px;padding:6px 12px;font-size:13px;cursor:pointer}
 button.rb:hover{background:#388bfd}
+button.rb.fwd{background:#1c2330;color:#9be7c4;border:1px solid #34d39944;margin-left:6px}
+button.rb.fwd:hover{background:#10261c}
 .flash{background:#10261c;border:1px solid #34d39944;color:#9be7c4;padding:10px 14px;border-radius:8px;margin-bottom:18px}
 .flash.err{background:#3b1414;border-color:#f8717144;color:#f3a3a3}
 code{background:#161b22;padding:1px 6px;border-radius:4px}
