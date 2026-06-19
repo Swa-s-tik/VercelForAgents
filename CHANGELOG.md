@@ -7,6 +7,11 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **`agentctl status`** (post-1.0). The terminal counterpart of the web dashboard: a rich summary of
+  deployments (status, eval verdict, live traffic weight, rollback honesty), recent gateway traffic by
+  canary arm, and recent rollbacks - reading the same system-of-record + DuckDB verdicts via the shared
+  `dashboard.queries`, so the CLI and web surfaces never drift. New: `agentctl/cli/status.py`,
+  `tests/test_cli_status.py`.
 - **Live traffic panel in the dashboard** (post-1.0). The dashboard now surfaces the data plane's
   real telemetry: recent gateway streams aggregated by canary arm (streams, frames forwarded, shadow
   drops, average latency), read from the same `otel_spans` the telemetry exporter writes. With the
