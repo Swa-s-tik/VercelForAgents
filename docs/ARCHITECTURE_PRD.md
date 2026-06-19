@@ -4,7 +4,7 @@
 
 ## 1. Problem & thesis
 
-Shipping an agent today means stitching together 4–5 disconnected SaaS products: one for
+Shipping an agent today means stitching together 4-5 disconnected SaaS products: one for
 evaluation, one for proxy/routing, one for observability, one for deploys/rollbacks.
 They don't share a data model, so the agent lifecycle is never treated as the single
 distributed system it actually is.
@@ -15,7 +15,7 @@ eval-gate → canary/shadow rollout → 1-click rollback that also realigns exte
 
 This document is the finalized design of the prototype in this repo. It is a runnable
 **skeleton that proves the three hardest concepts**, not a finished platform; clearly-marked
-stubs and the 3-phase roadmap (§8–9) describe the path to release.
+stubs and the 3-phase roadmap (§8-9) describe the path to release.
 
 ## 2. System topology
 
@@ -81,7 +81,7 @@ the same item):
   else `INCONCLUSIVE`. Set `nim = 0.52` for **superiority mode** - the only sound reading
   of the spec's "52%".
 - Ties fold via `tie_mode` (default `halve`). Across the many suites a PR runs,
-  **Benjamini–Hochberg FDR** controls false regressions; the PR blocks if any suite blocks.
+  **Benjamini-Hochberg FDR** controls false regressions; the PR blocks if any suite blocks.
 - Peeking is avoided by a **fixed-horizon** evaluation (one verdict at suite completion);
   anytime-valid confidence sequences are the roadmap upgrade.
 
@@ -97,7 +97,7 @@ ids = the prod boundary), `gate_result` (cached verdict).
 
 **The `Frame` envelope is the contract** (`proto/envelope.proto`): a `oneof payload`
 (TextDelta · BinaryChunk · ToolCall · ToolResult · Control · Approval{Req,Res} · TurnEnd ·
-StreamError). **Header fields 1–4 (`session_id, stream_id, seq, direction`) are frozen
+StreamError). **Header fields 1-4 (`session_id, stream_id, seq, direction`) are frozen
 forever** so the proxy forwards on a cheap header-only parse and a future Go/Rust data plane
 stays wire-compatible. `BinaryChunk` carries modality/codec/dims for vision/audio/TensorRT;
 `ToolCall.side_effecting` is the one bit that makes shadow isolation tractable.

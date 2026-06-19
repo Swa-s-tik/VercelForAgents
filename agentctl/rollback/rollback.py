@@ -101,7 +101,7 @@ def rollback_to_commit(conn: psycopg.Connection, project_id: str,
 def _realign_state(conn: psycopg.Connection, project_id: str, rb_id: int, to_dep: int, from_dep: int,
                    to_commit_sha: str, target_manifest, from_manifest, stores: dict, actor: str) -> dict:
     """Phases 2-4: per-pointer idempotent state realignment, irreversible-flagging, digest verify, and
-    the honest outcome. Every restore is idempotent, so this is safe to RE-RUN — which is exactly what
+    the honest outcome. Every restore is idempotent, so this is safe to RE-RUN - which is exactly what
     ``resume_rollback`` does after a crash mid-realignment (status left at 'state_realigning')."""
     # ---- Phase 2: per-pointer idempotent state realignment ----
     with conn.cursor() as cur:
@@ -173,7 +173,7 @@ _RESUMABLE = ("routing_flipped", "state_realigning")
 
 def find_inflight(conn: psycopg.Connection, project_id: str,
                   rollback_id: int | None = None) -> dict | None:
-    """The rollback for this project still mid-flight (flip committed, realignment unfinished) — the
+    """The rollback for this project still mid-flight (flip committed, realignment unfinished) - the
     most recent one, or a specific ``rollback_id``. Returns the rollbacks row or None."""
     with conn.cursor() as cur:
         if rollback_id is not None:
@@ -190,7 +190,7 @@ def resume_rollback(conn: psycopg.Connection, project_id: str, *, rollback_id: i
     """Re-drive a rollback that crashed AFTER the routing flip but BEFORE realignment finished.
 
     The flip (Phase 1) is already committed and the gateway is already serving the target, so we do
-    not touch routing — we simply re-run the idempotent Phases 2-4 from the persisted target
+    not touch routing - we simply re-run the idempotent Phases 2-4 from the persisted target
     checkpoint. Returns the outcome dict, or None if there is nothing to resume.
     """
     row = find_inflight(conn, project_id, rollback_id)

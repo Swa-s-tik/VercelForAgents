@@ -73,7 +73,7 @@ charged cards - those don't roll back when the code does). agentctl handles both
 
 - **Frozen `Frame` envelope** (`proto/`) carries text deltas, binary (vision/audio), tool calls,
   interrupts, and approvals - so the Python reference proxy and the Go data plane are **wire-compatible**:
-  byte-identical on the frozen header (fields 1–4) and decode-interoperable both directions (`make conformance`).
+  byte-identical on the frozen header (fields 1-4) and decode-interoperable both directions (`make conformance`).
 - **Postgres** is the ACID system-of-record (coordinates + proof, never bulk state). A routing
   flip fires `pg_notify`, and the **live Go gateway re-routes instantly** - zero dropped streams.
 - **DuckDB** is the embedded local OLAP store for eval traces (zero external deps).
@@ -186,6 +186,10 @@ on a fresh checkout vs. what's simulated or still a scaffold:
 
 > **Versioning note:** the package is tagged `1.0.0` to mark the roadmap complete; treat the wire,
 > `StateStore`, and auth contracts as the stable surfaces. There are no external production users yet.
+
+## Community
+
+`CONTRIBUTING.md` (dev setup, the two-runtime tests, the proto-is-source-of-truth rule) - `GOVERNANCE.md` (roles + decision process) - `CODE_OF_CONDUCT.md` - `SECURITY.md` (private vulnerability reporting).
 
 ## License
 

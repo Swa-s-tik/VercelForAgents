@@ -30,7 +30,7 @@ agentctl's gateway forwards a frame by parsing only its **header** and passing t
 bytes through untouched (header-only forwarding, PRD §4). It never re-encodes a forwarded frame. So
 the property that must hold is not "both runtimes re-encode identically" - it's:
 
-1. **The frozen header (fields 1–4: `session_id, stream_id, seq, direction`) is byte-identical
+1. **The frozen header (fields 1-4: `session_id, stream_id, seq, direction`) is byte-identical
    across runtimes.** Header fields always serialize first, in ascending order, with no oneof/map to
    reorder - so this *is* guaranteed, and it's exactly what the cheap header-parse forwarding relies
    on. We marshal a header-only `Frame` on each side and assert equal bytes (`header_hex`).
