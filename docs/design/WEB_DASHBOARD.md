@@ -61,3 +61,12 @@ wins), and `match_verdict` ties it to a deployment by commit SHA (exact, then pr
 full-vs-short shas). Read-only and best-effort: absent/locked store -> the column shows `-`. Verified
 by a unit matcher test + an integration that ingests + gates into a temp DuckDB and reads the
 aggregate back, plus a live smoke (a seeded deploy shows `ALLOW x3 [0.54, 0.67]`).
+
+## Update: live traffic panel
+
+A "Live traffic" panel aggregates recent `gateway.stream.metrics` spans (the ones the proxy emits via
+`record_stream_metrics`) by canary arm: streams, frames forwarded, shadow drops, and average latency,
+read from `controlplane.otel_spans`. So the data plane's real behavior shows up next to the
+deployments and eval verdicts - the dashboard is now one surface for deploy + eval + traffic +
+rollback. Empty until traffic flows. Verified by a pure render test + an aggregation test that inserts
+spans for two arms and checks the per-arm streams/frames/latency, plus a live smoke.

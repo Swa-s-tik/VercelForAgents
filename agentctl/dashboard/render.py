@@ -124,7 +124,30 @@ def history_table(history: list[dict]) -> str:
             "</tr></thead><tbody>" + "".join(rows) + "</tbody></table>")
 
 
-def dashboard_inner(deployments, honesty, history, routing_version, verdicts=None, flash: str = "") -> str:
+def traffic_table(rows: list[dict]) -> str:
+    if not rows:
+        return ('<p class="dim">No gateway traffic recorded yet. Run <code>agentctl push</code> '
+                "(spans land in <code>otel_spans</code> when telemetry is on).</p>")
+    out = []
+    for r in rows:
+        lat = r.get("avg_latency_ms")
+        lat_s = f"{lat:.0f} ms" if lat is not None else "-"
+        dropped = int(r.get("shadow_dropped") or 0)
+        drop_s = f'<span class="tag irrev">{dropped} dropped</span>' if dropped else ""
+        out.append(
+            "<tr>"
+            f'<td><span class="tag shadow">{_esc(r["arm"])}</span></td>'
+            f'<td class="mono">{int(r["streams"])}</td>'
+            f'<td class="mono">{int(r.get("frames") or 0)}</td>'
+            f'<td class="mono">{lat_s}</td>'
+            f"<td>{drop_s}</td>"
+            "</tr>")
+    return ('<table><thead><tr><th>canary arm</th><th>streams</th><th>frames</th>'
+            "<th>avg latency</th><th>shadow</th></tr></thead><tbody>" + "".join(out) + "</tbody></table>")
+
+
+def dashboard_inner(deployments, honesty, history, routing_version, verdicts=None, traffic=None,
+                    flash: str = "") -> str:
     """The swappable inner region (#dash) - re-rendered after a rollback POST."""
     v = "-" if routing_version is None else f"v{routing_version}"
     flash_html = f'<div class="flash">{flash}</div>' if flash else ""
@@ -132,6 +155,8 @@ def dashboard_inner(deployments, honesty, history, routing_version, verdicts=Non
         f"{flash_html}"
         f'<section><h2>Deployments <span class="dim">- live routing {v}</span></h2>'
         f"{deployments_table(deployments, honesty, verdicts)}</section>"
+        f"<section><h2>Live traffic <span class=\"dim\">- recent gateway streams by arm</span></h2>"
+        f"{traffic_table(traffic or [])}</section>"
         f"<section><h2>Rollback history</h2>{history_table(history)}</section>")
 
 
@@ -167,7 +192,8 @@ code{background:#161b22;padding:1px 6px;border-radius:4px}
 """
 
 
-def page(deployments, honesty, history, routing_version, project_id: str, verdicts=None) -> str:
+def page(deployments, honesty, history, routing_version, project_id: str, verdicts=None,
+         traffic=None) -> str:
     return (
         "<!doctype html><html lang=en><head><meta charset=utf-8>"
         "<meta name=viewport content='width=device-width,initial-scale=1'>"
@@ -176,5 +202,5 @@ def page(deployments, honesty, history, routing_version, project_id: str, verdic
         f"<style>{_CSS}</style></head><body>"
         "<header><h1>agentctl</h1>"
         f'<span class="sub">deploy control plane - project {_short(project_id)}</span></header>'
-        f'<main id="dash">{dashboard_inner(deployments, honesty, history, routing_version, verdicts)}</main>'
+        f'<main id="dash">{dashboard_inner(deployments, honesty, history, routing_version, verdicts, traffic)}</main>'
         "</body></html>")

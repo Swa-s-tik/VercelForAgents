@@ -7,6 +7,11 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Live traffic panel in the dashboard** (post-1.0). The dashboard now surfaces the data plane's
+  real telemetry: recent gateway streams aggregated by canary arm (streams, frames forwarded, shadow
+  drops, average latency), read from the same `otel_spans` the telemetry exporter writes. With the
+  eval verdict and rollback honesty already in view, the dashboard is now one surface for the whole
+  lifecycle - deploy, eval, traffic, rollback. New: `queries.stream_telemetry`, `render.traffic_table`.
 - **Eval verdict in the dashboard** (post-1.0). The dashboard now joins the *eval* surface to the
   *deploy* surface: each deployment shows its eval-gate verdict (ALLOW/BLOCK + suite count + Wilson
   CI), read from the DuckDB eval store and matched to the deployment by commit SHA (exact or prefix).

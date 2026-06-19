@@ -49,6 +49,15 @@ def test_rollback_button_only_for_eligible_targets():
 def test_empty_states():
     assert "No deployments" in render.deployments_table([], {})
     assert "No rollbacks" in render.history_table([])
+    assert "No gateway traffic" in render.traffic_table([])
+
+
+def test_traffic_table_renders_arms():
+    rows = [{"arm": "vA", "streams": 12, "frames": 252, "shadow_dropped": 3, "avg_latency_ms": 47.0},
+            {"arm": "vB", "streams": 2, "frames": 42, "shadow_dropped": 0, "avg_latency_ms": 51.0}]
+    html = render.traffic_table(rows)
+    assert "vA" in html and ">12<" in html and "47 ms" in html and "3 dropped" in html
+    assert "vB" in html and "51 ms" in html
 
 
 def test_page_is_self_contained_html():
@@ -133,6 +142,34 @@ def test_verdicts_by_commit_from_duckdb(tmp_path):
 
 def test_verdicts_by_commit_missing_db_is_empty():
     assert q.verdicts_by_commit("/nonexistent/path/eval.duckdb") == {}
+
+
+def test_stream_telemetry_aggregates_by_arm():
+    from psycopg.types.json import Json
+    conn = _seeded_conn()
+    try:
+        # (arm, frames_out, shadow_dropped, start_ns, end_ns) - vA twice, vB once
+        specs = [("vA", 21.0, 0.0, 0, 50_000_000),
+                 ("vA", 30.0, 1.0, 0, 70_000_000),
+                 ("vB", 10.0, 0.0, 0, 40_000_000)]
+        with conn.cursor() as cur:
+            for i, (arm, fr, dr, st, en) in enumerate(specs):
+                cur.execute(
+                    "INSERT INTO controlplane.otel_spans "
+                    "(trace_id, span_id, project_id, name, kind, start_unixnano, end_unixnano, "
+                    " status_code, attributes) "
+                    "VALUES (%s,%s,%s,'gateway.stream.metrics',2,%s,%s,0,%s)",
+                    [bytes([i]) * 16, bytes([i]) * 8, DEMO_PROJECT_ID, st, en,
+                     Json({"canary_arm": arm, "measure.frames_out": fr, "measure.shadow_dropped": dr})])
+        conn.commit()
+
+        rows = {r["arm"]: r for r in q.stream_telemetry(conn, DEMO_PROJECT_ID)}
+        assert rows["vA"]["streams"] == 2 and float(rows["vA"]["frames"]) == 51.0
+        assert float(rows["vA"]["shadow_dropped"]) == 1.0
+        assert float(rows["vA"]["avg_latency_ms"]) == pytest.approx(60.0)  # (50+70)/2 ms
+        assert rows["vB"]["streams"] == 1 and float(rows["vB"]["frames"]) == 10.0
+    finally:
+        conn.close()
 
 
 def test_index_and_rollback_post():
