@@ -15,6 +15,13 @@ All notable changes to agentctl are documented here. The format is based on
   persistence on/off.
 
 ### Added
+- **Declarative API: the AgentDeployment CRD + `agentctl apply`** (post-1.0). A custom resource
+  (`agentctl.dev/v1alpha1`, kind `AgentDeployment`: `commit`, `weight`, `requireGatePR`, `nim`) and a
+  reconcile that drives live routing to match it - `gated_rollout` when a gate PR is required, else
+  `set_canary`. `agentctl apply -f <cr>.yaml` runs the reconcile one-shot, so the declarative API works
+  today with no controller. A watch-loop controller and a hosted GitHub App are thin wrappers around
+  this reconcile (documented). New: `agentctl/operator/*`, `deploy/crds/*`, `tests/test_operator.py`,
+  `docs/design/CRD_OPERATOR.md`.
 - **Header-only fast path on the Python reference proxy** (post-1.0). The Python proxy now has the
   same opt-in (`AGENTCTL_ZEROCOPY=1`) header-only forwarding as the Go data plane: `gateway/wire.py`
   scans `session_id` and appends `canary_arm` on the wire bytes (no per-frame deserialize), pinned

@@ -56,4 +56,8 @@ local commit, without breaking the existing zero-config demo or test suite.
   ([PROTO_CONFORMANCE](design/PROTO_CONFORMANCE.md)). The whole wire contract (Frame + control plane
   + Health) is now cross-runtime decode-verified.
 - ✅ **Helm chart** - delivered ([HELM_K8S](design/HELM_K8S.md)); deploys the core 3-tier to
-  Kubernetes, verified end-to-end on a kind cluster. A full CRD operator + hosted GitHub App remain.
+  Kubernetes, verified end-to-end on a kind cluster.
+- ✅ **Declarative API: AgentDeployment CRD + reconcile** - delivered
+  ([CRD_OPERATOR](design/CRD_OPERATOR.md)). The custom resource + `agentctl apply -f` (one-shot
+  reconcile via the gated-rollout orchestrator) ship now; the watch-loop controller and a hosted
+  GitHub App are thin wrappers around the reconcile + the existing gate Action (framed in the doc).

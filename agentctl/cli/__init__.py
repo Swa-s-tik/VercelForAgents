@@ -194,6 +194,35 @@ def _add_dashboard_parser(sub) -> None:
     p.set_defaults(func=_cmd_dashboard)
 
 
+def _cmd_apply(args) -> int:
+    from agentctl.common.db import connect
+    from agentctl.operator.reconcile import reconcile_agentdeployment
+
+    raw = sys.stdin.read() if args.file == "-" else open(args.file).read()
+    try:
+        import yaml
+        cr = yaml.safe_load(raw)
+    except ImportError:
+        cr = json.loads(raw)   # YAML needs pyyaml; JSON works on a bare core install
+    conn = connect()
+    try:
+        status = reconcile_agentdeployment(conn, cr)
+    finally:
+        conn.close()
+    name = (cr.get("metadata") or {}).get("name", "?")
+    print(f"agentdeployment/{name}: {status['phase']}")
+    for k, v in status.items():
+        if k != "phase":
+            print(f"  {k}: {v}")
+    return 1 if status["phase"] == "Blocked" else 0
+
+
+def _add_apply_parser(sub) -> None:
+    p = sub.add_parser("apply", help="reconcile an AgentDeployment custom resource (declarative rollout)")
+    p.add_argument("-f", "--file", required=True, help="path to an AgentDeployment YAML/JSON ('-' = stdin)")
+    p.set_defaults(func=_cmd_apply)
+
+
 def _cmd_status(args) -> int:
     from agentctl.cli.status import run_status
     return run_status(project_id=args.project_id, as_json=args.json)
@@ -218,6 +247,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_eval_parsers(sub)
     _add_dashboard_parser(sub)
     _add_status_parser(sub)
+    _add_apply_parser(sub)
     for mod, fn in (("agentctl.rollback.cli", "add_rollback_parser"),
                     ("agentctl.gateway.cli", "add_gateway_parsers"),
                     ("agentctl.control.cli", "add_webhook_parsers"),

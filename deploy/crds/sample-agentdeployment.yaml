@@ -1,0 +1,11 @@
+# A 25% canary to a commit, gated on PR #123's eval result. Drop requireGatePR for an ungated
+# rollout; set weight: 100 for a full promote. Apply with `agentctl apply -f` (one-shot reconcile)
+# or `kubectl apply` once the watch-loop controller is running.
+apiVersion: agentctl.dev/v1alpha1
+kind: AgentDeployment
+metadata:
+  name: support-agent
+spec:
+  commit: bbbb2222bbbb
+  weight: 25
+  # requireGatePR: 123
