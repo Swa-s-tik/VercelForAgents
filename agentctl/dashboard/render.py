@@ -49,7 +49,8 @@ def _rollback_btn(d: dict) -> str:
     if not eligible:
         return ""
     sha = _esc(d["git_commit_sha"])
-    return (f'<button class="rb" hx-post="/api/rollback" hx-vals=\'{{"to_commit_sha":"{sha}"}}\' '
+    # commit sha in the path (git shas are URL-safe hex) -> no form body, no python-multipart dep.
+    return (f'<button class="rb" hx-post="/api/rollback/{sha}" '
             f'hx-target="#dash" hx-swap="innerHTML" hx-confirm="Roll back to {_short(d["git_commit_sha"])}?">'
             f'rollback to this</button>')
 

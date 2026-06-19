@@ -8,7 +8,7 @@ Run: uvicorn agentctl.dashboard.app:app --port 8050   (or: agentctl dashboard)
 """
 from __future__ import annotations
 
-from fastapi import FastAPI, Form
+from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 
 from agentctl.common.db import connect
@@ -49,9 +49,10 @@ def index():
     return render.page(project_id=project_id, **snap)
 
 
-@app.post("/api/rollback", response_class=HTMLResponse)
-def rollback(to_commit_sha: str = Form(...)):
-    """Roll back to a sealed deployment, then re-render the dashboard region (htmx swaps #dash)."""
+@app.post("/api/rollback/{to_commit_sha}", response_class=HTMLResponse)
+def rollback(to_commit_sha: str):
+    """Roll back to a sealed deployment, then re-render the dashboard region (htmx swaps #dash).
+    The commit sha is a path param (URL-safe hex), so no form body / python-multipart is needed."""
     project_id = _project_id()
     conn = connect()
     try:

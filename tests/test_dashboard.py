@@ -40,7 +40,7 @@ def test_canary_and_shadow_tags_render():
 def test_rollback_button_only_for_eligible_targets():
     # a non-live ready deploy is a rollback target
     ready = render.deployments_table([_dep(id=2, status="ready", weight=0, in_live_table=False)], {})
-    assert "hx-post=\"/api/rollback\"" in ready and "bbbb2222bbbb" in ready
+    assert "hx-post=\"/api/rollback/bbbb2222bbbbcccc\"" in ready
     # the 100%-live active deploy is NOT offered as a rollback target (already serving)
     live = render.deployments_table([_dep(id=3, status="active", weight=10000)], {})
     assert "hx-post" not in live
@@ -98,8 +98,8 @@ def test_index_and_rollback_post():
     page = client.get("/")
     assert page.status_code == 200 and "agentctl" in page.text and "Deployments" in page.text
 
-    # 1-click rollback to A (the older sealed deploy) via the htmx POST
-    r = client.post("/api/rollback", data={"to_commit_sha": SHA_A})
+    # 1-click rollback to A (the older sealed deploy) via the htmx POST (sha in the path)
+    r = client.post(f"/api/rollback/{SHA_A}")
     assert r.status_code == 200
     assert "Rolled back" in r.text or "could not be undone" in r.text
     # the refreshed fragment re-renders the deployments section
