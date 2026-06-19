@@ -69,3 +69,20 @@ def set_canary(conn: psycopg.Connection, project_id: str, commit_sha: str, weigh
         "routing": [{"commit": r["git_commit_sha"], "weight": r["weight"],
                      "is_canary": r["is_canary"], "shadow": r["shadow_target"]} for r in routing],
     }
+
+
+def gated_rollout(conn: psycopg.Connection, project_id: str, commit_sha: str, weight_pct: float,
+                  *, gate_pr: int, gate_db: str | None = None, nim: float = 0.50, n_min: int = 100,
+                  actor: str = "cli") -> tuple[object, dict | None]:
+    """The safety interlock: run the eval gate for ``gate_pr`` and roll out ONLY if it ALLOWs. Returns
+    ``(verdict, rollout_result | None)`` - the rollout is None (and no routing change happens) when the
+    gate is anything but ALLOW, so a regression can never be promoted by mistake."""
+    from agentctl.eval.gate import GateConfig
+    from agentctl.eval.runner import gate_pr as run_gate
+    from agentctl.storage.duckdb_store import EvalStore
+
+    store = EvalStore.open(gate_db) if gate_db else EvalStore.open()
+    verdict, _ = run_gate(store, gate_pr, GateConfig(nim=nim, n_min=n_min))
+    if verdict.decision != "ALLOW":
+        return verdict, None
+    return verdict, set_canary(conn, project_id, commit_sha, weight_pct, actor=actor)

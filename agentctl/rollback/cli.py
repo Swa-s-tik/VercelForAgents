@@ -84,15 +84,27 @@ def _cmd_run(args) -> int:
 
 def _cmd_rollout(args) -> int:
     from agentctl.common.db import connect
-    from agentctl.rollback.rollout import set_canary
+    from agentctl.rollback.rollout import gated_rollout, set_canary
     conn = connect()
     principal = _principal(args, conn, "developer")
     if principal is None:
         conn.close()
         return 1
+    actor = f"cli:{principal.name}"
     try:
-        res = set_canary(conn, principal.project_id, args.sha, args.weight,
-                         actor=f"cli:{principal.name}")
+        if args.require_gate is not None:
+            # interlock: roll out only if the PR's eval gate ALLOWs - a regression can't be promoted.
+            verdict, res = gated_rollout(conn, principal.project_id, args.sha, args.weight,
+                                         gate_pr=args.require_gate, gate_db=args.gate_db,
+                                         nim=args.nim, n_min=args.n_min, actor=actor)
+            if res is None:
+                print(f"gate for PR #{args.require_gate}: {verdict.decision} - {verdict.reason}")
+                print("rollout SKIPPED (the eval gate did not pass)")
+                conn.close()
+                return 1
+            print(f"gate for PR #{args.require_gate}: ALLOW - proceeding")
+        else:
+            res = set_canary(conn, principal.project_id, args.sha, args.weight, actor=actor)
     except ValueError as e:
         print(f"rollout failed: {e}")
         conn.close()
@@ -182,6 +194,12 @@ def add_rollback_parser(sub) -> None:
     ro = _with_key(rbsub.add_parser("rollout", help="progressive forward rollout: canary % or full promote (developer)"))
     ro.add_argument("sha", help="deployment commit to shift traffic toward")
     ro.add_argument("--weight", type=float, default=100.0, help="percent of live traffic (100 = full promote)")
+    ro.add_argument("--require-gate", type=int, default=None, dest="require_gate",
+                    help="PR number: roll out ONLY if that PR's eval gate ALLOWs (safety interlock)")
+    ro.add_argument("--gate-db", default=os.environ.get("AGENTCTL_DUCKDB", ".agentctl/eval.duckdb"),
+                    dest="gate_db", help="DuckDB eval store for --require-gate")
+    ro.add_argument("--nim", type=float, default=0.50, help="non-inferiority margin for --require-gate")
+    ro.add_argument("--n-min", type=int, default=30, dest="n_min", help="min samples for --require-gate")
     ro.set_defaults(func=_cmd_rollout)
     _with_key(rbsub.add_parser("audit", help="show the latest rollback's audit trail (viewer)")).set_defaults(func=_cmd_audit)
     _with_key(rbsub.add_parser("routing", help="show the live routing table (viewer)")).set_defaults(func=_cmd_routing)
