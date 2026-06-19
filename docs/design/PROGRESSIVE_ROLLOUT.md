@@ -40,3 +40,12 @@ for free - it is the same primitive, driven by a weight instead of a revert.
   validation (weight out of (0,100], unknown commit). Full suite 159 passed.
 - Live: `rollback rollout aaaa... --weight 25` -> B 75% / A 25% canary (routing v2); `--weight 100`
   -> A 100% (routing v3).
+
+## Update: gated rollout (eval interlock)
+
+`agentctl rollback rollout <commit> --weight W --require-gate <PR>` runs that PR's eval gate first and
+rolls out **only if it ALLOWs** - `gated_rollout` returns `(verdict, None)` and makes no routing change
+on BLOCK/INCONCLUSIVE, so a regression can't be promoted by mistake. This is the safety interlock that
+ties the eval surface to delivery (the explicit, composable form of what `agentctl push` does). Verified
+by tests that a passing candidate promotes while a regression candidate leaves routing untouched, plus a
+live ALLOW-proceeds / BLOCK-skips check.

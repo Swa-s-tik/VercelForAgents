@@ -59,6 +59,51 @@ def test_canary_split_then_promote():
         conn.close()
 
 
+def _gate_db(tmp_path, candidate, commit, pr):
+    """Ingest + persist a gate result for a candidate fixture under a temp DuckDB; return its path."""
+    from agentctl.eval.gate import GateConfig
+    from agentctl.eval.ingest import ingest_paired
+    from agentctl.eval.runner import gate_pr
+    from agentctl.storage.duckdb_store import EvalStore
+    db = str(tmp_path / "eval.duckdb")
+    store = EvalStore.open(db)
+    ingest_paired(store, candidate_path=candidate, baseline_path="demo/fixtures/main.jsonl",
+                  commit_sha=commit, baseline_sha="main", pr_number=pr)
+    gate_pr(store, pr, GateConfig(nim=0.50, n_min=5))
+    store.close()
+    return db
+
+
+def test_gated_rollout_allows_on_pass(tmp_path):
+    from agentctl.rollback.rollout import gated_rollout
+    from agentctl.rollback.routing import live_routing
+    conn = _seeded()
+    try:
+        ok_db = _gate_db(tmp_path, "demo/fixtures/candidate.jsonl", SHA_A, 11)
+        verdict, res = gated_rollout(conn, DEMO_PROJECT_ID, SHA_A, 100,
+                                     gate_pr=11, gate_db=ok_db, n_min=5, actor="t")
+        assert verdict.decision == "ALLOW" and res is not None and res["mode"] == "promote"
+        assert any(r["git_commit_sha"] == SHA_A and r["weight"] == 10000
+                   for r in live_routing(conn, DEMO_PROJECT_ID))
+    finally:
+        conn.close()
+
+
+def test_gated_rollout_skips_on_regression(tmp_path):
+    from agentctl.rollback.rollout import gated_rollout
+    from agentctl.rollback.routing import live_routing
+    conn = _seeded()
+    try:
+        bad_db = _gate_db(tmp_path, "demo/fixtures/candidate_regression.jsonl", SHA_A, 12)
+        before = live_routing(conn, DEMO_PROJECT_ID)
+        verdict, res = gated_rollout(conn, DEMO_PROJECT_ID, SHA_A, 100,
+                                     gate_pr=12, gate_db=bad_db, n_min=5, actor="t")
+        assert verdict.decision == "BLOCK" and res is None            # interlock held: no rollout
+        assert live_routing(conn, DEMO_PROJECT_ID) == before          # routing untouched
+    finally:
+        conn.close()
+
+
 def test_rollout_validation():
     conn = _seeded()
     try:

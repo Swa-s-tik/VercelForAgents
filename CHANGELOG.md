@@ -7,6 +7,10 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Gated rollout** (post-1.0). `agentctl rollback rollout <commit> --require-gate <PR>` runs that
+  PR's eval gate and rolls out only if it ALLOWs - the safety interlock tying eval to delivery, so a
+  regression can't be promoted by mistake (BLOCK/INCONCLUSIVE -> no routing change). New:
+  `rollout.gated_rollout` + tests.
 - **Delivery timeline** (post-1.0). A unified routing-change history (from `routing_tables`): every
   rollback, canary, and promote shown with its reason, the per-arm weight split, and who/when - in
   both the dashboard and `agentctl status`. The rollbacks-only history couldn't show forward changes;
