@@ -65,4 +65,4 @@ runs:
         agentctl gate --pr "${{ inputs.pr }}" \
           --nim "${{ inputs.nim }}" --n-min "${{ inputs.n-min }}" \
           ${{ inputs.strict == 'true' && '--strict' || '' }} \
-          --db "${{ runner.temp }}/agentctl-gate.duckdb" --github
+          --db "${{ runner.temp }}/agentctl-gate.duckdb" --github --check-run

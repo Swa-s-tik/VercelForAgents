@@ -81,9 +81,17 @@ def _maybe_post_github(args, decision: str, reason: str, exit_code: int, decisio
     payload = gh.status_payload(decision, reason, exit_code, target_url=getattr(args, "target_url", "") or "")
     body = gh.comment_markdown(_Verdict(decision, reason), decisions, sha=sha, margin=args.nim)
 
+    want_check = getattr(args, "check_run", False)
+    check_payload = (gh.check_run_payload(decision, reason, exit_code, sha, body)
+                     if (want_check and sha) else None)
+
     if getattr(args, "dry_run", False):
         print("\n--- [dry-run] commit status (POST /repos/{repo}/statuses/{sha}) ---")
         print(json.dumps(payload, indent=2))
+        if check_payload:
+            print("\n--- [dry-run] check run (POST /repos/{repo}/check-runs) ---")
+            print(json.dumps({**check_payload, "output": {**check_payload["output"],
+                                                          "summary": "<markdown table>"}}, indent=2))
         print("\n--- [dry-run] PR comment ---\n" + body)
         return
     if target is None:
@@ -95,6 +103,9 @@ def _maybe_post_github(args, decision: str, reason: str, exit_code: int, decisio
     try:
         code = gh.post_commit_status(target, payload)
         print(f"posted commit status [{payload['state']}] -> {target.repo}@{target.sha[:12]} (HTTP {code})")
+        if check_payload:
+            cc = gh.post_check_run(target, check_payload)
+            print(f"posted check run [{check_payload['conclusion']}] -> {target.repo}@{target.sha[:12]} (HTTP {cc})")
         if target.pr is not None:
             c = gh.post_pr_comment(target, body)
             print(f"posted PR comment -> #{target.pr} (HTTP {c})")
@@ -157,6 +168,8 @@ def _add_eval_parsers(sub) -> None:
                    help="post the verdict as a GitHub commit status (+ PR comment) using Actions env")
     g.add_argument("--dry-run", action="store_true", dest="dry_run",
                    help="print the would-post status + comment instead of calling the GitHub API")
+    g.add_argument("--check-run", action="store_true", dest="check_run",
+                   help="also post a GitHub Check Run (rich markdown summary + neutral conclusion)")
     g.add_argument("--target-url", dest="target_url",
                    default=os.environ.get("AGENTCTL_GATE_TARGET_URL", ""),
                    help="URL the status check links to (e.g. the CI run)")

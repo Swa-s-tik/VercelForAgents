@@ -7,6 +7,11 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **GitHub Check Run for the eval-gate** (post-1.0). `agentctl gate --check-run` posts a richer Check
+  Run alongside the commit status: a markdown summary (the per-suite Wilson-CI table) in the Checks
+  tab and a **`neutral`** conclusion for an INCONCLUSIVE gate that isn't a hard block - which a commit
+  status can't express. Composes with `--github`; needs `checks: write`. The dogfood workflow + the
+  reusable action now pass `--check-run`. New: `check_run_payload`/`post_check_run` + tests.
 - **`agentctl status`** (post-1.0). The terminal counterpart of the web dashboard: a rich summary of
   deployments (status, eval verdict, live traffic weight, rollback honesty), recent gateway traffic by
   canary arm, and recent rollbacks - reading the same system-of-record + DuckDB verdicts via the shared
