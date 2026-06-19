@@ -49,7 +49,17 @@ func main() {
 		grpc.StreamInterceptor(authn.StreamInterceptor),
 		grpc.UnaryInterceptor(authn.UnaryInterceptor),
 	)
-	acpv1.RegisterAgentStreamServer(srv, gateway.NewServer(resolver))
+	gw := gateway.NewServer(resolver)
+	if os.Getenv("AGENTCTL_ZEROCOPY") == "1" {
+		// Header-only fast path: route by scanning session_id and tag canary_arm by appending to the
+		// wire bytes, never building a typed Frame. Opt-in; the default registration is unchanged.
+		gateway.EnableZeroCopy()
+		desc := gateway.RawServiceDesc(gw)
+		srv.RegisterService(&desc, gw)
+		log.Printf("data plane: zero-copy forwarding ENABLED (header-only fast path)")
+	} else {
+		acpv1.RegisterAgentStreamServer(srv, gw)
+	}
 	log.Printf("gateway_core (Go data plane) listening on :%s", port)
 	if err := srv.Serve(lis); err != nil {
 		log.Fatalf("serve: %v", err)

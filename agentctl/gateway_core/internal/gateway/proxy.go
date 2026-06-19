@@ -26,7 +26,9 @@ func NewServer(r Resolver) *Server {
 	return &Server{resolver: r, conns: map[string]*grpc.ClientConn{}}
 }
 
-func (s *Server) client(endpoint string) (acpv1.AgentStreamClient, error) {
+// conn returns a pooled gRPC channel to endpoint (one per backend), shared by the typed and the
+// zero-copy raw paths.
+func (s *Server) conn(endpoint string) (*grpc.ClientConn, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cc, ok := s.conns[endpoint]
@@ -40,6 +42,14 @@ func (s *Server) client(endpoint string) (acpv1.AgentStreamClient, error) {
 			return nil, err
 		}
 		s.conns[endpoint] = cc
+	}
+	return cc, nil
+}
+
+func (s *Server) client(endpoint string) (acpv1.AgentStreamClient, error) {
+	cc, err := s.conn(endpoint)
+	if err != nil {
+		return nil, err
 	}
 	return acpv1.NewAgentStreamClient(cc), nil
 }
@@ -65,7 +75,7 @@ func (s *Server) Converse(stream acpv1.AgentStream_ConverseServer) error {
 	// shadow lanes: each is a BOUNDED, drop-on-full pipe drained by its own goroutine (see
 	// shadow.go). Lossy by design, so a slow/stuck shadow backend can never flow-control the
 	// primary — offer() in the pump below never blocks. Shadow responses are discarded.
-	var shadowPipes []*shadowPipe
+	var shadowPipes []*shadowPipe[*acpv1.Frame]
 	for _, sb := range shadows {
 		if sc, err := s.client(sb.Endpoint); err == nil {
 			if scall, err := sc.Converse(context.Background()); err == nil {
