@@ -7,6 +7,12 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Progressive rollout** (post-1.0). `agentctl rollback rollout <commit> --weight <pct>` rolls
+  *forward* by percentage - the complement of rollback. A canary (`--weight` < 100) splits live
+  traffic between the target and the current primary (shadows preserved); `--weight 100` is a full
+  promote. Both reuse the same atomic, advisory-locked routing flip + `pg_notify` as rollback, so the
+  live gateway re-routes instantly and correctness is inherited. New: `agentctl/rollback/rollout.py`,
+  `tests/test_rollout.py`, `docs/design/PROGRESSIVE_ROLLOUT.md`.
 - **GitHub Check Run for the eval-gate** (post-1.0). `agentctl gate --check-run` posts a richer Check
   Run alongside the commit status: a markdown summary (the per-suite Wilson-CI table) in the Checks
   tab and a **`neutral`** conclusion for an INCONCLUSIVE gate that isn't a hard block - which a commit

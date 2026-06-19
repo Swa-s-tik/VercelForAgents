@@ -82,6 +82,29 @@ def _cmd_run(args) -> int:
     return 0
 
 
+def _cmd_rollout(args) -> int:
+    from agentctl.common.db import connect
+    from agentctl.rollback.rollout import set_canary
+    conn = connect()
+    principal = _principal(args, conn, "developer")
+    if principal is None:
+        conn.close()
+        return 1
+    try:
+        res = set_canary(conn, principal.project_id, args.sha, args.weight,
+                         actor=f"cli:{principal.name}")
+    except ValueError as e:
+        print(f"rollout failed: {e}")
+        conn.close()
+        return 2
+    print(f"rollout ({res['mode']}) {args.sha} -> {args.weight:g}%  (routing v{res['routing_version']})")
+    for r in res["routing"]:
+        tag = " [canary]" if r["is_canary"] else (" [shadow]" if r["shadow"] else "")
+        print(f"  {r['commit'][:12]}  {r['weight'] / 100:g}%{tag}")
+    conn.close()
+    return 0
+
+
 def _cmd_resume(args) -> int:
     from agentctl.common.db import connect
     from agentctl.rollback.rollback import resume_rollback
@@ -156,5 +179,9 @@ def add_rollback_parser(sub) -> None:
     res = _with_key(rbsub.add_parser("resume", help="re-drive a rollback that crashed mid-realignment (admin)"))
     res.add_argument("--id", type=int, default=None, help="specific rollback id (else the latest in-flight)")
     res.set_defaults(func=_cmd_resume)
+    ro = _with_key(rbsub.add_parser("rollout", help="progressive forward rollout: canary % or full promote (developer)"))
+    ro.add_argument("sha", help="deployment commit to shift traffic toward")
+    ro.add_argument("--weight", type=float, default=100.0, help="percent of live traffic (100 = full promote)")
+    ro.set_defaults(func=_cmd_rollout)
     _with_key(rbsub.add_parser("audit", help="show the latest rollback's audit trail (viewer)")).set_defaults(func=_cmd_audit)
     _with_key(rbsub.add_parser("routing", help="show the live routing table (viewer)")).set_defaults(func=_cmd_routing)
