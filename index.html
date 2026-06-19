@@ -459,8 +459,10 @@
       <div class="row"><div class="what">RBAC (both planes), proto conformance, pgvector/Qdrant, ClickHouse/Grafana, Helm, PyPI wheel<small>opt-in via env / compose profile</small></div><span class="pill real">REAL · TESTED</span></div>
       <div class="row"><div class="what">Python <code>grpc.aio</code> data plane<small>the proxy that runs by default</small></div><span class="pill real">REAL</span></div>
       <div class="row"><div class="what">Go data plane (<code>gateway_core</code>)<small>compiled & conformance-checked in CI; <code>make build</code> to run locally</small></div><span class="pill scaf">SOURCE · CI</span></div>
-      <div class="row"><div class="what">Demo eval samples<small>seeded synthetic judge - bring your own for real preferences</small></div><span class="pill sim">SIMULATED</span></div>
-      <div class="row"><div class="what">Header-only zero-copy forwarding · bounded Go shadow queue<small>realized in the Python reference; planned for Go</small></div><span class="pill next">PLANNED</span></div>
+      <div class="row"><div class="what">Demo eval samples<small>seeded synthetic judge by default; gate on real model judgments via LLMJudge (agentctl[judge])</small></div><span class="pill sim">SIMULATED</span></div>
+      <div class="row"><div class="what">Streamed <code>issue_refund</code> interception ("real refunds: 0")<small>sandbox intercepts the actual streamed tool call, mocked in preview</small></div><span class="pill real">REAL</span></div>
+      <div class="row"><div class="what">Bounded drop-on-full shadow queue (both runtimes)<small>a slow shadow can't throttle the primary - Python &amp; Go</small></div><span class="pill real">REAL</span></div>
+      <div class="row"><div class="what">Header-only zero-copy forwarding<small>planned; both runtimes still fully deserialize each frame</small></div><span class="pill next">PLANNED</span></div>
     </div>
     <div class="legend">
       <span><span class="pill real" style="padding:2px 8px">REAL</span> runs &amp; tested today</span>

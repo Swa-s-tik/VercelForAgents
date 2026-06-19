@@ -106,12 +106,13 @@ That single `agentctl push` runs the **entire pipeline** and proves it on screen
 ③ ✅ PR MERGED → promoted 100% live · https://support-agent-7ce7a54d.agents.live
 ```
 
-> **What you're actually seeing.** The eval samples are drawn by a *seeded synthetic judge* from a
-> configured win-rate - the statistics (Wilson CI, SPRT) run for real on those samples, but the
-> preference *data* is simulated until you wire your own judge. The **②′ Go-gateway stream** only
-> renders if the host-side Go binary is built (`cd agentctl/gateway_core && make build`); without it
-> that stage prints `streaming proof skipped` and the rest of the pipeline runs on the Python proxy.
-> The exact mapping of claim → reality is in the [status matrix](#status--whats-real).
+> **What you're actually seeing.** The eval samples come from a *seeded synthetic judge* by default
+> (the Wilson CI / SPRT statistics run for real on those samples) - or plug in the real `LLMJudge`
+> (`pip install 'agentctl[judge]'`) to gate on actual model judgments. The **②′ stream** runs through
+> the **Go gateway** when one is reachable or built, and otherwise falls back to the in-process
+> **Python reference proxy** - either way you see real incremental frames and the streamed
+> `issue_refund` tool call intercepted in the sandbox. Full mapping in the
+> [status matrix](#status--whats-real).
 
 Try a regression - the gate blocks it:
 
@@ -125,16 +126,16 @@ agentctl push --simulate-regression     # ⛔ PR BLOCKED (SPRT crosses the lower
 docker compose up --build        # Postgres + Go gateway + Python control plane
 ```
 
-> This compiles the gateway *inside its container*. The `agentctl push` streaming proof launches a
-> *host-side* Go binary, so to see the ②′ Go-gateway stream you still need `make build` on the host
-> (otherwise that one stage is skipped - the rest of the pipeline runs regardless).
+> This compiles the gateway *inside its container*. `agentctl push` streams its ②′ proof through that
+> running Go gateway automatically; if no gateway is reachable it falls back to the in-process Python
+> reference proxy, so the stage always runs.
 
 ## What's inside
 
 | Concern | How agentctl does it |
 |---|---|
 | **Eval-gating** | A **non-inferiority gate** on a paired win/loss/tie signal - Wilson score interval decides BLOCK/ALLOW; **Wald SPRT** stops early (an inferior agent is typically blocked in well under ~100 of 1000 samples; the exact count depends on the effect size). Fixes the naïve "win-rate < 52% AND p > 0.05" rule, which is statistically backwards. |
-| **Streaming gateway** | A `grpc.aio` reference proxy (the data plane that runs by default) **plus** a **source-complete Go data plane** (`make build` to compile it) behind a frozen proto: per-session sticky canary, shadow mirroring (bounded drop-on-full in the Python reference; best-effort drop-on-error in Go today), token streaming, and a WebSocket edge where a mid-turn interrupt is a barge-in `Control` frame (stream stays open) and a client disconnect cancels the gRPC call. |
+| **Streaming gateway** | A `grpc.aio` reference proxy (the data plane that runs by default) **plus** a **source-complete Go data plane** (`make build` to compile it) behind a frozen proto: per-session sticky canary, shadow mirroring with a **bounded drop-on-full queue in both runtimes** (a slow shadow can't throttle the primary), token streaming, and a WebSocket edge where a mid-turn interrupt is a barge-in `Control` frame (stream stays open) and a client disconnect cancels the gRPC call. |
 | **Stateful rollback** | Only the routing flip is a hard ACID transaction (atomic, `LISTEN/NOTIFY`); state realignment is per-pointer idempotent. Reversibility is **schema-enforced** - the system can't claim a payment is reversible. Real **pgvector** + Postgres event-sourced memory backends (`AGENTCTL_STATE_BACKEND=pgvector`). |
 | **Multi-tenant RBAC** | Hashed **API keys** with `viewer/developer/admin/owner` roles, enforced at HTTP, gRPC, and CLI. Zero-config by default (a seeded bootstrap key); `AGENTCTL_REQUIRE_KEY=1` to enforce. |
 | **Telemetry** | OTel spans → Postgres buffer by default; flip `TELEMETRY_BACKEND=clickhouse` for a **ClickHouse + Grafana** warehouse (optional `--profile telemetry` compose stack with provisioned dashboards). |
@@ -174,9 +175,10 @@ on a fresh checkout vs. what's simulated or still a scaffold:
 | RBAC (both planes), proto conformance, pgvector/Qdrant, ClickHouse/Grafana, Helm, wheel | **Real & tested** (opt-in via env/profile) |
 | Python `grpc.aio` data plane | **Real** - the proxy that runs by default |
 | Go data plane (`gateway_core`) | **Source-complete; compiled & conformance-checked in CI** - but the binary isn't shipped in the tree; `make build` to run it locally |
-| Demo eval samples | **Simulated** - a seeded synthetic judge from a configured win-rate; bring your own judge for real preferences |
-| Demo `issue_refund` interception ("real refunds: 0") | **Illustrative** - the sandbox call is currently invoked out-of-band, not wired to the streamed tool frame |
-| Header-only zero-copy forwarding · bounded Go shadow queue | **Not yet** - planned; both runtimes fully deserialize today and the Go shadow path is drop-on-error |
+| Demo eval samples | **Simulated by default** (seeded synthetic judge) - or gate on real model judgments via `LLMJudge` (`agentctl[judge]`); a cached real-judgment fixture is gated in CI |
+| Demo `issue_refund` interception ("real refunds: 0") | **Real** - the sandbox intercepts the *actual streamed* tool call and mocks it in preview, so no real refund fires |
+| Bounded drop-on-full shadow queue (both runtimes) | **Real** - a slow shadow can't backpressure the primary on either the Python or the Go path |
+| Header-only zero-copy forwarding | **Not yet** - planned; both runtimes still fully deserialize each frame |
 
 > **Versioning note:** the package is tagged `1.0.0` to mark the roadmap complete; treat the wire,
 > `StateStore`, and auth contracts as the stable surfaces. There are no external production users yet.

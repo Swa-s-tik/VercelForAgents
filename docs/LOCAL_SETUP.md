@@ -92,21 +92,21 @@ Watch for, in order:
    content-addressed commit.
 2. **② preview** - a deployment is registered and an **isolated preview agent** boots on its own
    port (`queued → building → ready`).
-3. **②′ live stream through the Go data plane** - the part to actually watch *(requires the host-side Go
-   binary from `make build`; otherwise this stage prints `streaming proof skipped` and the pipeline
-   continues on the Python proxy)*:
+3. **②′ live stream through the data plane** - the part to actually watch. The proof streams through
+   the **Go gateway** when one is reachable on :50050 (e.g. from `docker compose up`) or built
+   (`make build`); otherwise it falls back to the in-process **Python reference proxy**, so the stage
+   always runs (the panel says which engine served it):
    - **incremental streaming** - ~21 `TextDelta` frames arrive spread over several hundred
      milliseconds (first @ ~30ms, last @ ~600ms). Nothing is buffered; you're seeing tokens stream
-     through the real Go gateway.
-   - **side-effect handling** - the agent emits an `issue_refund` tool call marked side-effecting, which
-     is **sandbox-mocked** in preview (`real refunds issued: 0`) and sealed as
-     `side_effect / irreversible` in the rollback checkpoint. (Today the sandbox call is invoked
-     out-of-band rather than wired to the streamed tool frame - the seal is real, the interception is
-     illustrative.)
+     incrementally through the live gateway.
+   - **side-effect handling** - the agent emits an `issue_refund` tool call marked side-effecting; the
+     sandbox **intercepts that streamed call** and mocks it in preview (`real refunds issued: 0`), then
+     seals it as `side_effect / irreversible` in the rollback checkpoint.
 4. **the eval-gate, live** - the **Wilson 95% confidence interval bar updates in place** as paired
    samples stream in, and **Wald's SPRT** stops early and prints its call, e.g.
-   `SPRT ALLOW @ 41/300 samples · Wilson95 [0.530, 0.804]`. *(The samples come from a seeded synthetic
-   judge - the statistics are real; the preference data is simulated until you wire your own judge.)*
+   `SPRT ALLOW @ 41/300 samples · Wilson95 [0.530, 0.804]`. *(The demo samples come from a seeded
+   synthetic judge - the statistics are real; install `agentctl[judge]` to gate on real model
+   judgments via `LLMJudge`.)*
 5. **③ routing promotion** - because the candidate is non-inferior, you get
    `✅ PR MERGED → promoted 100% live`. Under the hood that's the **atomic routing flip** (advisory
    lock + partial-unique index), and its `pg_notify` re-routes the live Go gateway over
