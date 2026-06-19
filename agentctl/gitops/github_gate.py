@@ -123,3 +123,27 @@ def post_pr_comment(t: GitHubTarget, body: str, opener: Opener = _default_opener
     if t.pr is None:
         return 0
     return _post(f"{t.api_url}/repos/{t.repo}/issues/{t.pr}/comments", t.token, {"body": body}, opener)
+
+
+# --- Check Runs (richer than a commit status: a markdown summary + a neutral conclusion) -------- #
+def check_conclusion(decision: str, exit_code: int) -> str:
+    """Map to a Check Run conclusion. A commit status can only be success/failure; a check run adds
+    `neutral`, the honest outcome for an INCONCLUSIVE/INSUFFICIENT gate that isn't a hard block."""
+    if exit_code != 0:
+        return "failure"
+    return "success" if decision == "ALLOW" else "neutral"
+
+
+def check_run_payload(decision: str, reason: str, exit_code: int, sha: str, summary_md: str,
+                      title: str | None = None) -> dict:
+    return {
+        "name": GATE_CONTEXT,
+        "head_sha": sha,
+        "status": "completed",
+        "conclusion": check_conclusion(decision, exit_code),
+        "output": {"title": (title or f"{decision}: {reason}")[:120], "summary": summary_md},
+    }
+
+
+def post_check_run(t: GitHubTarget, payload: dict, opener: Opener = _default_opener) -> int:
+    return _post(f"{t.api_url}/repos/{t.repo}/check-runs", t.token, payload, opener)

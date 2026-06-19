@@ -116,6 +116,32 @@ def test_post_pr_comment_request_and_noop_without_pr():
     assert called["n"] == 0
 
 
+def test_check_conclusion_mapping():
+    assert gh.check_conclusion("ALLOW", 0) == "success"
+    assert gh.check_conclusion("BLOCK", 1) == "failure"
+    assert gh.check_conclusion("INCONCLUSIVE", 0) == "neutral"   # the honest non-block outcome
+    assert gh.check_conclusion("INCONCLUSIVE", 1) == "failure"   # strict mode blocked
+    assert gh.check_conclusion("INSUFFICIENT_DATA", 0) == "neutral"
+
+
+def test_check_run_payload_shape():
+    p = gh.check_run_payload("ALLOW", "all good", 0, "headsha", "## summary\n| t |", title="Eval gate")
+    assert p["name"] == gh.GATE_CONTEXT and p["head_sha"] == "headsha"
+    assert p["status"] == "completed" and p["conclusion"] == "success"
+    assert p["output"]["title"] == "Eval gate" and "summary" in p["output"]["summary"]
+
+
+def test_post_check_run_builds_correct_request():
+    sink: dict = {}
+    tgt = gh.GitHubTarget(repo="Swa-s-tik/agentctl", sha="headsha", token="secret")
+    code = gh.post_check_run(
+        tgt, gh.check_run_payload("BLOCK", "regressed", 1, "headsha", "summary"),
+        opener=_capture_opener(sink))
+    assert code == 201
+    assert sink["url"] == "https://api.github.com/repos/Swa-s-tik/agentctl/check-runs"
+    assert sink["body"]["conclusion"] == "failure" and sink["body"]["head_sha"] == "headsha"
+
+
 def test_api_url_override_for_ghe():
     sink: dict = {}
     tgt = gh.GitHubTarget(repo="o/r", sha="s", token="t", api_url="https://ghe.corp/api/v3")

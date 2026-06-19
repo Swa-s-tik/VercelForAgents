@@ -65,3 +65,13 @@ thin, well-tested I/O layer, not new gate logic.
 - End-to-end locally: ingested the demo `candidate.jsonl` vs `main.jsonl` and ran `agentctl gate --pr
   --dry-run` -> ALLOW -> `state: success`; the regression fixture -> BLOCK -> `state: failure`,
   exit 1.
+
+## Update: Check Runs (`--check-run`)
+
+`agentctl gate --check-run` additionally posts a GitHub **Check Run** - richer than a commit status:
+a markdown **summary** (the per-suite Wilson-CI table) shows in the Checks tab, and the conclusion can
+be **`neutral`** (the honest outcome for an INCONCLUSIVE/INSUFFICIENT gate that isn't a hard block) -
+something a commit status (success/failure only) can't express. `check_conclusion` maps exit-code +
+decision: non-zero -> failure, ALLOW -> success, otherwise -> neutral. It composes with `--github`
+(status still gates merge); requires `checks: write` on the token. The dogfood workflow and the
+reusable action both pass `--check-run`, so PRs get the rich check live.
