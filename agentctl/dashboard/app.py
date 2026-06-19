@@ -30,6 +30,7 @@ def _snapshot(conn, project_id: str) -> dict:
         "honesty": q.deployment_honesty(conn, project_id),
         "history": q.rollback_history(conn, project_id),
         "routing_version": q.live_routing_version(conn, project_id),
+        "verdicts": q.verdicts_by_commit(),  # eval surface joined to the deploy surface (DuckDB)
     }
 
 

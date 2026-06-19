@@ -56,6 +56,28 @@ def test_page_is_self_contained_html():
     assert html.startswith("<!doctype html>")
     assert "htmx.org" in html              # the only client dep, from a CDN
     assert "v37" in html                   # live routing version
+    assert "eval verdict" in html          # the eval surface is joined into the deploy view
+
+
+def test_match_verdict_exact_and_prefix():
+    verdicts = {"aaaa1111aaaa2222": {"decision": "ALLOW"}}
+    assert render.match_verdict("aaaa1111aaaa2222", verdicts)["decision"] == "ALLOW"   # exact
+    assert render.match_verdict("aaaa1111aaaa2222ffff", verdicts)["decision"] == "ALLOW"  # dep sha longer
+    assert render.match_verdict("aaaa1111", verdicts)["decision"] == "ALLOW"  # 8-char prefix matches
+    assert render.match_verdict("aaaa11", verdicts) is None        # < 8 shared chars -> no match
+    assert render.match_verdict("bbbb9999", verdicts) is None      # no overlap
+    assert render.match_verdict("x", {}) is None
+
+
+def test_verdict_cell_in_table():
+    verdicts = {"bbbb2222bbbbcccc": {"decision": "ALLOW", "win_rate": 0.68, "wilson_low": 0.53,
+                                     "wilson_high": 0.80, "n": 41, "suites": 3}}
+    html = render.deployments_table([_dep()], {}, verdicts)
+    assert "ALLOW" in html and "x3" in html and "[0.53, 0.80]" in html
+    # a BLOCK verdict renders distinctly
+    block = render.deployments_table([_dep()], {}, {"bbbb2222bbbbcccc": {"decision": "BLOCK",
+              "win_rate": 0.43, "wilson_low": 0.34, "wilson_high": 0.52, "n": 111, "suites": 1}})
+    assert "BLOCK" in block
 
 
 # ------------------------------------------------------- integration over a seeded Postgres --- #
@@ -83,6 +105,34 @@ def test_queries_against_seed():
         assert q.live_routing_version(conn, DEMO_PROJECT_ID) is not None
     finally:
         conn.close()
+
+
+def test_verdicts_by_commit_from_duckdb(tmp_path):
+    """Populate a DuckDB eval store (ingest + gate) and read the aggregate verdict back by commit."""
+    from agentctl.eval.gate import GateConfig
+    from agentctl.eval.ingest import ingest_paired
+    from agentctl.eval.runner import gate_pr
+    from agentctl.storage.duckdb_store import EvalStore
+
+    db = str(tmp_path / "eval.duckdb")
+    store = EvalStore.open(db)
+    ingest_paired(store, candidate_path="demo/fixtures/candidate.jsonl",
+                  baseline_path="demo/fixtures/main.jsonl", commit_sha="aaaa1111aaaa2222",
+                  baseline_sha="main", pr_number=777)
+    gate_pr(store, 777, GateConfig(nim=0.50, n_min=5))  # persists a gate_result per suite
+    store.close()
+
+    v = q.verdicts_by_commit(db)
+    assert "aaaa1111aaaa2222" in v
+    row = v["aaaa1111aaaa2222"]
+    assert row["decision"] == "ALLOW" and row["suites"] >= 1 and row["wilson_low"] is not None
+    # the join shows up in a rendered table when a deployment shares that commit
+    dep = _dep(git_commit_sha="aaaa1111aaaa2222", status="active")
+    assert "ALLOW" in render.deployments_table([dep], {}, v)
+
+
+def test_verdicts_by_commit_missing_db_is_empty():
+    assert q.verdicts_by_commit("/nonexistent/path/eval.duckdb") == {}
 
 
 def test_index_and_rollback_post():

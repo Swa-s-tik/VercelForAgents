@@ -51,3 +51,13 @@ build step, and wired to the **real** rollback orchestrator.
   orchestrator and re-renders).
 - Live smoke: `agentctl dashboard` serves the page (deployments, the live 100% arm, the irreversible
   honesty marker, the rollback button, history) with no server errors.
+
+## Update: eval verdict joined in
+
+The dashboard now also surfaces each deployment's **eval-gate verdict** (ALLOW/BLOCK + suite count +
+Wilson CI), so the two halves of the product - eval and deploy - are one view. `verdicts_by_commit`
+reads the DuckDB eval store (`eval_run` joined to `gate_result`), aggregates per commit (worst suite
+wins), and `match_verdict` ties it to a deployment by commit SHA (exact, then prefix, to tolerate
+full-vs-short shas). Read-only and best-effort: absent/locked store -> the column shows `-`. Verified
+by a unit matcher test + an integration that ingests + gates into a temp DuckDB and reads the
+aggregate back, plus a live smoke (a seeded deploy shows `ALLOW x3 [0.54, 0.67]`).

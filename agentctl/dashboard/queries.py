@@ -3,7 +3,13 @@ returns plain dicts/lists (psycopg is opened with dict rows), so render.py and t
 a live connection. Read-only; the only write path is rollback_to_commit, called from app.py."""
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 import psycopg
+
+# decision severity (worst wins when a commit has several suites)
+_SEVERITY = {"BLOCK": 3, "INCONCLUSIVE": 2, "INSUFFICIENT_DATA": 1, "ALLOW": 0}
 
 
 def list_deployments(conn: psycopg.Connection, project_id: str) -> list[dict]:
@@ -59,6 +65,44 @@ def deployment_honesty(conn: psycopg.Connection, project_id: str) -> dict[int, d
             [project_id],
         )
         return {r["deployment_id"]: r for r in cur.fetchall()}
+
+
+def verdicts_by_commit(db_path: str | None = None) -> dict[str, dict]:
+    """Aggregate eval-gate verdict per commit, read from the DuckDB eval store - this is what joins
+    the *eval* surface to the *deploy* surface. Returns {} if the store is absent/empty/locked (the
+    dashboard then just shows '-'). When a commit has several suites, the overall decision is the
+    worst, reported with that suite's win-rate + Wilson CI and the suite count."""
+    from agentctl.storage.duckdb_store import DEFAULT_DB
+
+    path = db_path or os.environ.get("AGENTCTL_DUCKDB", DEFAULT_DB)
+    if not Path(path).exists():
+        return {}
+    try:
+        import duckdb
+        con = duckdb.connect(path, read_only=True)
+    except Exception:
+        return {}
+    try:
+        rows = con.execute(
+            "SELECT e.commit_sha, e.suite_name, g.decision, g.win_rate, g.wilson_low, g.wilson_high, g.n "
+            "FROM eval_run e JOIN gate_result g ON g.run_id = e.run_id"
+        ).fetchall()
+    except Exception:
+        return {}
+    finally:
+        con.close()
+
+    by: dict[str, dict] = {}
+    for commit, suite, decision, wr, lo, hi, n in rows:
+        cur = by.get(commit)
+        if cur is None:
+            by[commit] = {"decision": decision, "suite": suite, "win_rate": wr,
+                          "wilson_low": lo, "wilson_high": hi, "n": n, "suites": 1}
+            continue
+        cur["suites"] += 1
+        if _SEVERITY.get(decision, 0) > _SEVERITY.get(cur["decision"], 0):
+            cur.update(decision=decision, suite=suite, win_rate=wr, wilson_low=lo, wilson_high=hi, n=n)
+    return by
 
 
 def rollback_history(conn: psycopg.Connection, project_id: str, limit: int = 10) -> list[dict]:
