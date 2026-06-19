@@ -27,6 +27,9 @@ CLICKHOUSE_HTTP_ENDPOINT = os.environ.get("CLICKHOUSE_HTTP_ENDPOINT", "http://lo
 CLICKHOUSE_USER = os.environ.get("CLICKHOUSE_USER", "agentctl")
 CLICKHOUSE_PASSWORD = os.environ.get("CLICKHOUSE_PASSWORD", "agentctl")
 OTEL_EXPORTER_OTLP_ENDPOINT = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+# OTLP/HTTP collector endpoint for TELEMETRY_BACKEND=otlp (stdlib exporter; no extra dep).
+OTLP_HTTP_ENDPOINT = os.environ.get(
+    "AGENTCTL_OTLP_ENDPOINT", "http://localhost:4318/v1/traces")
 
 # A fixed project id so the prototype demo is reproducible.
 DEMO_PROJECT_ID = os.environ.get("AGENTCTL_PROJECT_ID", "00000000-0000-0000-0000-0000000000a1")

@@ -90,12 +90,16 @@ def _make_exporter(backend: str) -> SpanExporter:
         from agentctl.telemetry.clickhouse_exporter import ClickHouseSpanExporter
         return ClickHouseSpanExporter()  # native HTTP insert into agentctl.otel_spans
     if backend == "otlp":
+        # stdlib OTLP/HTTP exporter (OTLP-JSON to a collector's /v1/traces) - no extra dependency.
+        from agentctl.telemetry.otlp_exporter import OTLPHttpSpanExporter
+        return OTLPHttpSpanExporter()
+    if backend == "otlp-grpc":
         try:
             from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
             return OTLPSpanExporter()
         except Exception:
-            print("[telemetry] OTLP exporter unavailable; falling back to console "
-                  "(install opentelemetry-exporter-otlp for backend=otlp)")
+            print("[telemetry] gRPC OTLP exporter unavailable; falling back to console "
+                  "(install opentelemetry-exporter-otlp for backend=otlp-grpc)")
             return ConsoleSpanExporter()
     return ConsoleSpanExporter()
 
