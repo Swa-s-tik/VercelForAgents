@@ -91,6 +91,18 @@ def rollback_to_commit(conn: psycopg.Connection, project_id: str,
     audit.record(conn, project_id, rb_id, actor, "routing_flip", to_commit_sha,
                  {"routing_table_id": rt_id, "version": version})
 
+    # ---- Phases 2-4: idempotent state realignment + honest outcome (crash-resumable) ----
+    res = _realign_state(conn, project_id, rb_id, to_dep, from_dep, to_commit_sha,
+                         target_manifest, from_manifest, stores, actor)
+    res["routing_version"] = version
+    return res
+
+
+def _realign_state(conn: psycopg.Connection, project_id: str, rb_id: int, to_dep: int, from_dep: int,
+                   to_commit_sha: str, target_manifest, from_manifest, stores: dict, actor: str) -> dict:
+    """Phases 2-4: per-pointer idempotent state realignment, irreversible-flagging, digest verify, and
+    the honest outcome. Every restore is idempotent, so this is safe to RE-RUN — which is exactly what
+    ``resume_rollback`` does after a crash mid-realignment (status left at 'state_realigning')."""
     # ---- Phase 2: per-pointer idempotent state realignment ----
     with conn.cursor() as cur:
         cur.execute("UPDATE controlplane.rollbacks SET status='state_realigning' WHERE id=%s", [rb_id])
@@ -151,4 +163,49 @@ def rollback_to_commit(conn: psycopg.Connection, project_id: str,
                  {"status": final, "unrollbackable": unrollbackable})
 
     return {"rollback_id": rb_id, "status": final, "to_commit": to_commit_sha,
-            "routing_version": version, "unrollbackable": unrollbackable}
+            "unrollbackable": unrollbackable}
+
+
+# Statuses a rollback can be stuck in after a crash: the flip (Phase 1) has committed, but the
+# idempotent state realignment (Phases 2-4) did not finish.
+_RESUMABLE = ("routing_flipped", "state_realigning")
+
+
+def find_inflight(conn: psycopg.Connection, project_id: str,
+                  rollback_id: int | None = None) -> dict | None:
+    """The rollback for this project still mid-flight (flip committed, realignment unfinished) — the
+    most recent one, or a specific ``rollback_id``. Returns the rollbacks row or None."""
+    with conn.cursor() as cur:
+        if rollback_id is not None:
+            cur.execute("SELECT * FROM controlplane.rollbacks WHERE id=%s AND project_id=%s",
+                        [rollback_id, project_id])
+        else:
+            cur.execute("SELECT * FROM controlplane.rollbacks WHERE project_id=%s AND status = ANY(%s) "
+                        "ORDER BY initiated_at DESC LIMIT 1", [project_id, list(_RESUMABLE)])
+        return cur.fetchone()
+
+
+def resume_rollback(conn: psycopg.Connection, project_id: str, *, rollback_id: int | None = None,
+                    actor: str = "cli") -> dict | None:
+    """Re-drive a rollback that crashed AFTER the routing flip but BEFORE realignment finished.
+
+    The flip (Phase 1) is already committed and the gateway is already serving the target, so we do
+    not touch routing — we simply re-run the idempotent Phases 2-4 from the persisted target
+    checkpoint. Returns the outcome dict, or None if there is nothing to resume.
+    """
+    row = find_inflight(conn, project_id, rollback_id)
+    if row is None or row["status"] not in _RESUMABLE:
+        return None
+    rb_id = row["id"]
+    to_dep, from_dep, to_commit_sha = row["to_deployment"], row["from_deployment"], row["to_commit_sha"]
+
+    target_manifest = mf.load_manifest(conn, to_dep)
+    if target_manifest is None:
+        raise ValueError("target checkpoint is not sealed; cannot resume realignment")
+    from_manifest = mf.load_manifest(conn, from_dep)
+    stores = _stores(conn, project_id)
+
+    audit.record(conn, project_id, rb_id, actor, "rollback_resume", to_commit_sha,
+                 {"from_status": row["status"]})
+    return _realign_state(conn, project_id, rb_id, to_dep, from_dep, to_commit_sha,
+                          target_manifest, from_manifest, stores, actor)

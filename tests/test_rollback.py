@@ -65,7 +65,50 @@ def test_full_rollback():
     conn.close()
 
 
+def test_resume_after_crash():
+    """A rollback that crashes after the atomic flip but before realignment finishes is re-driven by
+    resume_rollback (the idempotent Phases 2-4), reaching the same honest outcome."""
+    from psycopg.types.json import Json
+
+    import agentctl.rollback.rollback as rb
+    from agentctl.rollback import manifest as mf, routing
+
+    conn = connect()
+    apply_schema(conn, _SCHEMA)          # isolate from the previous test
+    seed(conn)
+
+    with conn.cursor() as cur:
+        cur.execute("SELECT id, git_commit_sha FROM controlplane.deployments WHERE project_id=%s",
+                    [DEMO_PROJECT_ID])
+        deps = {r["git_commit_sha"]: r["id"] for r in cur.fetchall()}
+    to_dep, from_dep = deps[SHA_A], deps[SHA_B]
+
+    # Simulate the crash: the atomic flip (Phase 1) committed and a rollbacks row was parked at
+    # 'state_realigning', but the per-pointer realignment (Phase 2) never ran.
+    target = mf.load_manifest(conn, to_dep)
+    with conn.cursor() as cur:
+        cur.execute(
+            """INSERT INTO controlplane.rollbacks
+               (project_id, from_deployment, to_deployment, to_commit_sha, status, manifest_snapshot, initiated_by)
+               VALUES (%s,%s,%s,%s,'state_realigning',%s,'crash-sim') RETURNING id""",
+            [DEMO_PROJECT_ID, from_dep, to_dep, SHA_A, Json(target.to_json())])
+        rb_id = cur.fetchone()["id"]
+    routing.flip_routing(conn, DEMO_PROJECT_ID, to_dep, reason="rollback:crash-sim", actor="crash-sim")
+    conn.commit()
+    assert VectorStoreStub().live_namespace() == "proj-a1-ns-v37"   # realignment hasn't run yet
+
+    # the in-flight rollback is detected and re-driven to completion
+    assert rb.find_inflight(conn, DEMO_PROJECT_ID)["id"] == rb_id
+    res = rb.resume_rollback(conn, DEMO_PROJECT_ID)
+    assert res is not None and res["rollback_id"] == rb_id and res["status"] == "compensating"
+    assert VectorStoreStub().live_namespace() == "proj-a1-ns-v36"
+    assert MemoryGraphStub().live_head()["snapshot_seq"] == 1000
+    assert rb.find_inflight(conn, DEMO_PROJECT_ID) is None          # nothing left to resume
+    conn.close()
+
+
 if __name__ == "__main__":
     setup_module()
     test_full_rollback()
-    print("rollback integration test passed")
+    test_resume_after_crash()
+    print("rollback integration tests passed")

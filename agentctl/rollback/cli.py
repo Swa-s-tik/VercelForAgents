@@ -82,6 +82,26 @@ def _cmd_run(args) -> int:
     return 0
 
 
+def _cmd_resume(args) -> int:
+    from agentctl.common.db import connect
+    from agentctl.rollback.rollback import resume_rollback
+    conn = connect()
+    principal = _principal(args, conn, "admin")
+    if principal is None:
+        conn.close()
+        return 1
+    res = resume_rollback(conn, principal.project_id, rollback_id=args.id,
+                          actor=f"cli:{principal.name}")
+    if res is None:
+        print("no in-flight rollback to resume")
+    else:
+        print(f"resumed rollback #{res['rollback_id']} -> {res['to_commit']}: status={res['status']}")
+        for u in res["unrollbackable"]:
+            print(f"    - [{u['class']}] {u['store_id']}: {u['reason']}")
+    conn.close()
+    return 0
+
+
 def _cmd_audit(args) -> int:
     from agentctl.common.db import connect
     from agentctl.rollback import audit
@@ -133,5 +153,8 @@ def add_rollback_parser(sub) -> None:
     run = _with_key(rbsub.add_parser("run", help="1-click rollback to a commit sha (admin)"))
     run.add_argument("sha")
     run.set_defaults(func=_cmd_run)
+    res = _with_key(rbsub.add_parser("resume", help="re-drive a rollback that crashed mid-realignment (admin)"))
+    res.add_argument("--id", type=int, default=None, help="specific rollback id (else the latest in-flight)")
+    res.set_defaults(func=_cmd_resume)
     _with_key(rbsub.add_parser("audit", help="show the latest rollback's audit trail (viewer)")).set_defaults(func=_cmd_audit)
     _with_key(rbsub.add_parser("routing", help="show the live routing table (viewer)")).set_defaults(func=_cmd_routing)
