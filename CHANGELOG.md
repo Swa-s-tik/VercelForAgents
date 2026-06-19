@@ -7,6 +7,14 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Pinecone vector StateStore** (post-1.0): the third managed vector backend, selected via
+  `AGENTCTL_STATE_BACKEND=pinecone`. Pinecone has no native aliases, so the alias-swap rollback is
+  modelled with a pointer record (one `id=pointer` in a `__live__<project>` namespace whose metadata
+  names the live namespace); historical namespaces are preserved, reusing the exact digest contract.
+  Optional dep (`pip install 'agentctl[pinecone]'`). The constructor takes an injected index, so the
+  StateStore semantics are unit-tested against an in-memory fake (no account); a live test self-skips.
+  New: `agentctl/rollback/stores/pinecone_store.py`, `tests/test_pinecone.py`,
+  `docs/design/PINECONE_STATE_STORE.md`.
 - **Community scaffolding** (post-1.0). `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1),
   `GOVERNANCE.md` (roles, decision process, release policy), and GitHub issue/PR templates
   (`.github/ISSUE_TEMPLATE/*`, `.github/PULL_REQUEST_TEMPLATE.md`).

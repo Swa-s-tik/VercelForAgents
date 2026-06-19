@@ -34,7 +34,9 @@ local commit, without breaking the existing zero-config demo or test suite.
   with a reusable composite action and a dogfood workflow on this repo. Makes "open a PR -> auto
   quality-gate" a real loop, retiring the webhook-emulator stand-in for the GitOps surface.
 - ✅ **Qdrant** vector adapter behind the `StateStore` protocol - delivered
-  ([QDRANT_STATE_STORE](design/QDRANT_STATE_STORE.md)). A Pinecone adapter is the remaining one.
+  ([QDRANT_STATE_STORE](design/QDRANT_STATE_STORE.md)) and **Pinecone**
+  ([PINECONE_STATE_STORE](design/PINECONE_STATE_STORE.md)) - the alias-swap modelled with a pointer
+  record since Pinecone has no native aliases. The named vector backends are all delivered.
 - ✅ **`users` + `role_bindings`** - delivered ([AUTH_RBAC](design/AUTH_RBAC.md)). A key can belong
   to a user; its effective role is the user's project binding (`COALESCE(binding, key.role)`),
   resolved identically on both planes. Standalone keys keep the 1.0 role-per-key behavior.
