@@ -7,6 +7,12 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **OTLP/HTTP telemetry exporter** (post-1.0). `TELEMETRY_BACKEND=otlp` now ships OTel spans as
+  OTLP-JSON over HTTP to any collector's `/v1/traces` (otelcol, Tempo, Jaeger, Honeycomb, Grafana
+  Cloud) with **no new dependency** - stdlib urllib, same discipline as the ClickHouse exporter
+  (never crashes the caller). Replaces the old `otlp` path that needed the heavy gRPC OTLP package
+  (kept behind `otlp-grpc`). Pure OTLP payload builder is unit-tested against real tracer spans. New:
+  `agentctl/telemetry/otlp_exporter.py`, `tests/test_otlp_exporter.py`, `docs/design/OTLP_HTTP_EXPORTER.md`.
 - **Web dashboard** (post-1.0). `agentctl dashboard` serves a server-rendered view of the deploy
   lifecycle from the Postgres system-of-record: deployments with their live canary/shadow routing
   weights, a rollback-honesty column (schema-enforced irreversible side effects), rollback history,
