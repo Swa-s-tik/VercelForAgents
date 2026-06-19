@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>agentctl - Vercel for AI Agents</title>
+<meta name="description" content="Ship AI agents with one command. agentctl is an open-source control plane: push → isolated preview → statistical eval-gate → canary/shadow rollout → 1-click stateful rollback." />
+<meta name="theme-color" content="#0b0e16" />
+<meta property="og:title" content="agentctl - Vercel for AI Agents" />
+<meta property="og:description" content="One open-source control plane for the agent lifecycle: push → preview → statistical eval-gate → rollout → honest stateful rollback." />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="https://swa-s-tik.github.io/VercelForAgents/assets/architecture.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="icon" href="data:image/svg+xml,&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'&gt;&lt;rect rx='22' width='100' height='100' fill='%230b0e16'/&gt;&lt;text x='50' y='72' font-size='62' text-anchor='middle' fill='%2337e0c8' font-family='monospace'&gt;a&lt;/text&gt;&lt;/svg&gt;" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#0b0e16; --bg2:#0e1320; --panel:#141b2b; --panel2:#1a2335;
+    --stroke:#243049; --stroke2:#2e3c5c;
+    --txt:#e8eef7; --mut:#93a1b8; --dim:#6b7892;
+    --cyan:#37e0c8; --violet:#8b7bff; --amber:#ffb14e; --green:#37d17f; --red:#ff6b6b; --blue:#4aa8ff;
+    --grad:linear-gradient(110deg,#37e0c8,#4aa8ff 45%,#8b7bff);
+    --shadow:0 18px 50px -18px rgba(0,0,0,.7);
+    --maxw:1120px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg); color:var(--txt);
+    font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    line-height:1.6; -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  body::before{
+    content:""; position:fixed; inset:0; z-index:-2; pointer-events:none;
+    background:
+      radial-gradient(600px 380px at 12% -5%, rgba(55,224,200,.12), transparent 60%),
+      radial-gradient(620px 420px at 92% 4%, rgba(139,123,255,.14), transparent 60%),
+      radial-gradient(700px 500px at 60% 100%, rgba(74,168,255,.08), transparent 60%);
+  }
+  body::after{
+    content:""; position:fixed; inset:0; z-index:-1; pointer-events:none; opacity:.4;
+    background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);
+    background-size:46px 46px;
+    mask-image:radial-gradient(circle at 50% 30%, #000 0%, transparent 78%);
+  }
+  a{color:inherit;text-decoration:none}
+  code,pre,.mono{font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  .grad-txt{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+  /* ---- nav ---- */
+  nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(12px);
+      background:rgba(11,14,22,.72);border-bottom:1px solid var(--stroke)}
+  .nav-in{display:flex;align-items:center;gap:24px;height:62px}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;letter-spacing:-.02em}
+  .logo .mk{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
+            background:var(--panel);border:1px solid var(--stroke2);color:var(--cyan);
+            font-family:'JetBrains Mono';font-weight:700}
+  .nav-links{display:flex;gap:26px;margin-left:auto;font-size:14.5px;color:var(--mut)}
+  .nav-links a:hover{color:var(--txt)}
+  .nav-cta{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border-radius:9px;
+           background:var(--panel);border:1px solid var(--stroke2);font-weight:600;font-size:14px}
+  .nav-cta:hover{border-color:var(--cyan);color:var(--cyan)}
+  @media(max-width:780px){.nav-links{display:none}}
+
+  /* ---- buttons ---- */
+  .btn{display:inline-flex;align-items:center;gap:9px;padding:13px 22px;border-radius:11px;
+       font-weight:650;font-size:15px;border:1px solid transparent;transition:.18s;cursor:pointer}
+  .btn-primary{background:var(--grad);color:#06121b;font-weight:800}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 14px 30px -10px rgba(74,168,255,.5)}
+  .btn-ghost{background:var(--panel);border-color:var(--stroke2);color:var(--txt)}
+  .btn-ghost:hover{border-color:var(--mut);transform:translateY(-2px)}
+
+  /* ---- hero ---- */
+  .hero{padding:74px 0 30px;display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center}
+  @media(max-width:920px){.hero{grid-template-columns:1fr;padding-top:48px}}
+  .badge{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--mut);
+         background:var(--panel);border:1px solid var(--stroke);padding:6px 13px;border-radius:999px;margin-bottom:22px}
+  .badge .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(55,209,127,.18)}
+  h1{font-size:clamp(38px,5.4vw,60px);line-height:1.04;letter-spacing:-.035em;font-weight:900}
+  .sub{margin-top:20px;font-size:18.5px;color:var(--mut);max-width:560px}
+  .sub b{color:var(--txt);font-weight:600}
+  .cmd{margin-top:26px;display:inline-flex;align-items:center;gap:14px;background:#06090f;
+       border:1px solid var(--stroke2);border-radius:12px;padding:13px 16px;font-size:15px}
+  .cmd .p{color:var(--cyan)} .cmd .c{color:var(--txt)}
+  .cmd button{margin-left:4px;background:var(--panel2);border:1px solid var(--stroke2);color:var(--mut);
+              border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;font-family:inherit}
+  .cmd button:hover{color:var(--cyan);border-color:var(--cyan)}
+  .hero-btns{margin-top:30px;display:flex;gap:14px;flex-wrap:wrap}
+  .hero-stats{margin-top:40px;display:flex;gap:34px;flex-wrap:wrap}
+  .hero-stats .s b{display:block;font-size:26px;font-weight:800;letter-spacing:-.02em}
+  .hero-stats .s span{font-size:13px;color:var(--dim)}
+
+  /* ---- terminal ---- */
+  .term{background:#070a11;border:1px solid var(--stroke2);border-radius:14px;overflow:hidden;
+        box-shadow:var(--shadow);font-size:13px}
+  .term-bar{display:flex;align-items:center;gap:8px;padding:11px 14px;background:#0c111c;border-bottom:1px solid var(--stroke)}
+  .term-bar i{width:11px;height:11px;border-radius:50%;display:block}
+  .term-bar .t{margin-left:10px;color:var(--dim);font-size:12px;font-family:'JetBrains Mono'}
+  .term-body{padding:16px 18px;font-family:'JetBrains Mono';line-height:1.85;white-space:pre-wrap}
+  .term-body .g{color:var(--green)} .term-body .c{color:var(--cyan)} .term-body .v{color:var(--violet)}
+  .term-body .a{color:var(--amber)} .term-body .m{color:var(--dim)} .term-body .r{color:var(--red)}
+  .term-body .w{color:var(--txt)}
+
+  /* ---- sections ---- */
+  section{padding:64px 0;position:relative}
+  .eyebrow{font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan)}
+  .h2{font-size:clamp(27px,3.6vw,38px);font-weight:850;letter-spacing:-.03em;margin:12px 0 14px}
+  .lead{color:var(--mut);font-size:17px;max-width:680px}
+
+  /* ---- pipeline ---- */
+  .pipe{display:flex;align-items:stretch;gap:8px;margin-top:38px;flex-wrap:wrap}
+  .stage{flex:1;min-width:150px;background:var(--panel);border:1px solid var(--stroke);
+         border-radius:14px;padding:18px 16px;position:relative;transition:.2s}
+  .stage:hover{transform:translateY(-4px);border-color:var(--stroke2)}
+  .stage .n{font-family:'JetBrains Mono';font-size:12px;color:var(--dim)}
+  .stage h4{font-size:17px;margin:5px 0 4px;font-weight:750}
+  .stage p{font-size:13px;color:var(--mut)}
+  .stage.gate{border-color:rgba(55,224,200,.5);box-shadow:0 0 0 1px rgba(55,224,200,.18)}
+  .stage.gate h4{color:var(--cyan)}
+  .arrowc{display:grid;place-items:center;color:var(--dim);font-size:20px;padding:0 2px}
+  @media(max-width:760px){.arrowc{transform:rotate(90deg)}.pipe{flex-direction:column}}
+
+  /* ---- generic grid cards ---- */
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:38px}
+  @media(max-width:880px){.grid3{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--stroke);border-radius:16px;padding:26px;transition:.2s}
+  .card:hover{transform:translateY(-4px);border-color:var(--stroke2);box-shadow:var(--shadow)}
+  .card .ic{width:44px;height:44px;border-radius:11px;display:grid;place-items:center;font-size:20px;margin-bottom:16px;
+            background:var(--panel2);border:1px solid var(--stroke2)}
+  .card h3{font-size:19px;font-weight:750;letter-spacing:-.01em}
+  .card .tag{font-family:'JetBrains Mono';font-size:11px;color:var(--dim);letter-spacing:.04em}
+  .card p{color:var(--mut);font-size:14.5px;margin-top:9px}
+  .card ul{margin:14px 0 0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+  .card li{font-size:13.5px;color:var(--mut);display:flex;gap:9px;align-items:flex-start}
+  .card li::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;margin-top:8px;background:var(--accent,#4aa8ff)}
+  .a-cyan{--accent:var(--cyan)} .a-violet{--accent:var(--violet)} .a-amber{--accent:var(--amber)}
+  .a-cyan .ic{color:var(--cyan)} .a-violet .ic{color:var(--violet)} .a-amber .ic{color:var(--amber)}
+
+  /* ---- wilson viz ---- */
+  .wviz{margin-top:22px;background:#070a11;border:1px solid var(--stroke);border-radius:12px;padding:16px}
+  .wviz .lbl{display:flex;justify-content:space-between;font-family:'JetBrains Mono';font-size:12px;color:var(--mut);margin-bottom:6px}
+  .wviz .verdict{color:var(--green);font-weight:700}
+  .bar{position:relative;height:26px;border-radius:7px;background:linear-gradient(90deg,rgba(255,107,107,.18),rgba(55,209,127,.16));overflow:hidden}
+  .bar .ci{position:absolute;top:0;bottom:0;background:linear-gradient(90deg,#37e0c8,#4aa8ff);border-radius:5px;transition:left .25s,width .25s;opacity:.9}
+  .bar .margin{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--txt);left:50%}
+  .bar .margin::after{content:"nim .50";position:absolute;top:-17px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--mut);font-family:'JetBrains Mono';white-space:nowrap}
+  .scale{display:flex;justify-content:space-between;font-family:'JetBrains Mono';font-size:10px;color:var(--dim);margin-top:5px}
+
+  /* ---- architecture diagram (inline SVG) ---- */
+  .archwrap{margin-top:34px;background:linear-gradient(180deg,var(--panel),var(--bg2));
+            border:1px solid var(--stroke);border-radius:18px;padding:18px 18px 10px;box-shadow:var(--shadow);overflow-x:auto}
+  .arch{width:100%;min-width:730px;height:auto;display:block;font-family:'Inter',system-ui,sans-serif}
+  .arch .card{fill:var(--panel2);stroke:var(--stroke2);stroke-width:1.5;transition:stroke-width .2s,filter .2s}
+  .arch .node:hover .card{stroke-width:2.6;filter:drop-shadow(0 7px 18px rgba(0,0,0,.55))}
+  .arch .ttl{font-weight:800;font-size:16px;fill:var(--txt)}
+  .arch .sub{fill:var(--mut);font-size:12px}
+  .arch .lab{fill:var(--mut);font-family:'JetBrains Mono',monospace;font-size:11px}
+  .arch .link{fill:none;stroke:var(--stroke2);stroke-width:2}
+  .arch .flow{stroke-dasharray:7 8;animation:dash 2.4s linear infinite}
+  .arch .n-cyan .card{stroke:var(--cyan)}     .arch .n-cyan .ttl{fill:var(--cyan)}
+  .arch .n-violet .card{stroke:var(--violet)} .arch .n-violet .ttl{fill:var(--violet)}
+  .arch .n-green .card{stroke:var(--green)}   .arch .n-green .ttl{fill:var(--green)}
+  .arch .n-blue .card{stroke:var(--blue)}     .arch .n-blue .ttl{fill:var(--blue)}
+  .arch .n-amber .card{stroke:var(--amber)}   .arch .n-amber .ttl{fill:var(--amber)}
+  .arch .dot{filter:drop-shadow(0 0 4px currentColor)}
+  @keyframes dash{to{stroke-dashoffset:-120}}
+  @media(prefers-reduced-motion:reduce){.arch .flow{animation:none}.arch .dot{display:none}}
+  .arch-legend{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;margin:14px 0 4px;font-size:12.5px;color:var(--mut)}
+  .arch-legend i{display:inline-block;width:11px;height:11px;border-radius:4px;margin-right:7px;vertical-align:-1px}
+  .figcap{text-align:center;color:var(--dim);font-size:13px;margin-top:10px;max-width:680px;margin-left:auto;margin-right:auto}
+
+  /* ---- status matrix ---- */
+  .matrix{margin-top:34px;border:1px solid var(--stroke);border-radius:16px;overflow:hidden;background:var(--panel)}
+  .row{display:grid;grid-template-columns:1.6fr .9fr;gap:14px;padding:15px 22px;border-bottom:1px solid var(--stroke);align-items:center}
+  .row:last-child{border-bottom:none}
+  .row:nth-child(odd){background:rgba(255,255,255,.012)}
+  .row .what{font-size:14.5px} .row .what small{display:block;color:var(--dim);font-size:12.5px;margin-top:2px}
+  .pill{justify-self:start;font-size:12px;font-weight:700;font-family:'JetBrains Mono';padding:4px 11px;border-radius:999px;border:1px solid}
+  .pill.real{color:var(--green);border-color:rgba(55,209,127,.4);background:rgba(55,209,127,.08)}
+  .pill.sim{color:var(--amber);border-color:rgba(255,177,78,.4);background:rgba(255,177,78,.08)}
+  .pill.scaf{color:var(--blue);border-color:rgba(74,168,255,.4);background:rgba(74,168,255,.08)}
+  .pill.next{color:var(--dim);border-color:var(--stroke2);background:rgba(255,255,255,.02)}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:16px;font-size:12.5px;color:var(--mut)}
+
+  /* ---- cta ---- */
+  .cta{margin:30px 0 70px;text-align:center;background:
+       radial-gradient(700px 300px at 50% 0%,rgba(139,123,255,.14),transparent 70%);
+       border:1px solid var(--stroke);border-radius:22px;padding:56px 24px}
+  .cta h2{font-size:clamp(26px,4vw,40px);font-weight:850;letter-spacing:-.03em}
+  .cta p{color:var(--mut);margin:14px auto 28px;max-width:520px;font-size:17px}
+
+  footer{border-top:1px solid var(--stroke);padding:34px 0 60px;color:var(--dim);font-size:14px}
+  .foot-in{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:center}
+  .foot-in a:hover{color:var(--txt)}
+
+  .reveal{opacity:0;transform:translateY(22px);transition:.6s cubic-bezier(.2,.7,.2,1)}
+  .reveal.in{opacity:1;transform:none}
+  @media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none}*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap nav-in">
+    <a class="logo" href="#top"><span class="mk">a</span> agentctl</a>
+    <div class="nav-links">
+      <a href="#why">Why</a>
+      <a href="#verticals">How it works</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#status">What's real</a>
+      <a href="#start">Quickstart</a>
+    </div>
+    <a class="nav-cta" href="https://github.com/Swa-s-tik/VercelForAgents" target="_blank" rel="noopener">★ GitHub</a>
+  </div>
+</nav>
+
+<a id="top"></a>
+<header class="wrap hero">
+  <div>
+    <span class="badge"><span class="dot"></span> open-source · Apache-2.0 · Python + Go</span>
+    <h1>Ship AI agents like<br><span class="grad-txt">Vercel ships frontends.</span></h1>
+    <p class="sub">One control plane for the whole agent lifecycle - not five stitched-together SaaS tools. A change to a prompt, tool schema, or graph flows through <b>one</b> path: preview → <b>statistical</b> eval-gate → canary/shadow rollout → <b>honest</b> 1-click rollback.</p>
+
+    <div class="cmd mono">
+      <span class="p">$</span><span class="c">agentctl push</span>
+      <button id="copyBtn" aria-label="copy">copy</button>
+    </div>
+
+    <div class="hero-btns">
+      <a class="btn btn-primary" href="#start">Get started →</a>
+      <a class="btn btn-ghost" href="https://github.com/Swa-s-tik/VercelForAgents" target="_blank" rel="noopener">View on GitHub</a>
+    </div>
+
+    <div class="hero-stats">
+      <div class="s"><b class="grad-txt">3</b><span>integrated verticals</span></div>
+      <div class="s"><b class="grad-txt">1</b><span>command to ship</span></div>
+      <div class="s"><b class="grad-txt">0</b><span>side-effects faked on rollback</span></div>
+    </div>
+  </div>
+
+  <div class="term reveal">
+    <div class="term-bar">
+      <i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i>
+      <span class="t">examples/support_agent - agentctl push</span>
+    </div>
+    <div class="term-body"><span class="m">①</span> <span class="w">pack</span>      <span class="m">README.md, agent.py, prompt.yaml → commit</span> <span class="a">7ce7a54d</span>
+<span class="m">②</span> <span class="w">preview</span>   <span class="m">deployment #3 ·</span> <span class="g">queued → building → ready</span> <span class="m">· :57201</span>
+<span class="v">②′</span> <span class="w">live stream - Go data plane</span>
+   <span class="m">text  </span><span class="c">21 TextDelta frames</span> <span class="m">· first 33ms · last 639ms (no buffering)</span>
+   <span class="m">tool  </span><span class="a">issue_refund</span> <span class="m">→ sandbox-mocked · real refunds:</span> <span class="g">0</span>
+   <span class="m">seal  </span><span class="a">side_effect / irreversible</span> <span class="m">in checkpoint</span>
+<span class="m">eval-gate</span>  <span class="c">SPRT ALLOW @ 41/300</span> <span class="m">· Wilson95</span> <span class="w">[0.530, 0.804]</span>
+<span class="g">③ ✅ PR MERGED</span> <span class="m">→ promoted 100% live</span>
+   <span class="m">https://support-agent-7ce7a54d.agents.live</span></div>
+  </div>
+</header>
+
+<!-- pipeline -->
+<section id="pipeline">
+  <div class="wrap">
+    <span class="eyebrow">the one pipeline</span>
+    <h2 class="h2">push once. it proves itself on screen.</h2>
+    <p class="lead">Every stage runs from a single command - and the gate is statistical, not a green checkmark.</p>
+    <div class="pipe reveal">
+      <div class="stage"><div class="n">①</div><h4>pack</h4><p>tar + sha256 → content-addressed commit</p></div>
+      <div class="arrowc">→</div>
+      <div class="stage"><div class="n">②</div><h4>preview</h4><p>isolated agent on its own port</p></div>
+      <div class="arrowc">→</div>
+      <div class="stage gate"><div class="n">eval</div><h4>eval-gate</h4><p>Wilson CI + Wald SPRT decide ALLOW / BLOCK</p></div>
+      <div class="arrowc">→</div>
+      <div class="stage"><div class="n">③</div><h4>rollout</h4><p>atomic routing flip · LISTEN/NOTIFY</p></div>
+      <div class="arrowc">→</div>
+      <div class="stage"><div class="n">↺</div><h4>rollback</h4><p>1-click · stateful · honest</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- why -->
+<section id="why">
+  <div class="wrap">
+    <span class="eyebrow">the gap</span>
+    <h2 class="h2">Why the borrowed toolchain breaks on agents</h2>
+    <p class="lead">Three problems share one root cause - no unified model of the agent lifecycle - so they want one control plane, not five.</p>
+    <div class="grid3">
+      <div class="card a-cyan reveal">
+        <div class="ic">📊</div>
+        <h3>Quality is a distribution</h3>
+        <p>Deterministic CI gates on pass/fail. An agent's "correctness" is a distribution - version B beats A on 58% of inputs. A green checkmark is the wrong primitive; the right question is statistical non-inferiority.</p>
+      </div>
+      <div class="card a-violet reveal">
+        <div class="ic">🔌</div>
+        <h3>A turn is a long bidi stream</h3>
+        <p>A basic HTTP proxy assumes a short, bufferable round-trip. An agent turn streams tokens, barges in mid-turn, emits tool calls, and mixes tiny deltas with multi-MB frames. Routing must be per-session sticky.</p>
+      </div>
+      <div class="card a-amber reveal">
+        <div class="ic">⚠️</div>
+        <h3>Side-effects don't git-revert</h3>
+        <p>Roll back the code and the emails sent, vectors written, and cards charged are still out there. A deploy tool that says "rolled back ✅" after a refund is lying. Rollback has to be honest about what's irreversible.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- verticals -->
+<section id="verticals">
+  <div class="wrap">
+    <span class="eyebrow">three verticals</span>
+    <h2 class="h2">The hard parts, done honestly</h2>
+    <p class="lead">Each vertical is real code with the right invariant - and the eval statistics are unit-tested against hand-computed scipy values.</p>
+    <div class="grid3">
+
+      <div class="card a-cyan reveal">
+        <div class="ic">🎯</div>
+        <span class="tag">VERTICAL A · agentctl/eval</span>
+        <h3>Probabilistic eval-gate</h3>
+        <p>A <b style="color:var(--txt)">Wilson score interval</b> vs a non-inferiority margin decides BLOCK/ALLOW; <b style="color:var(--txt)">Wald's SPRT</b> stops early. Fixes the statistically-backwards "win-rate&nbsp;&lt;&nbsp;52% AND p&gt;0.05" rule.</p>
+        <div class="wviz">
+          <div class="lbl"><span id="wn">SPRT · n=18</span><span class="verdict" id="wv">…</span></div>
+          <div class="bar"><div class="margin"></div><div class="ci" id="wci" style="left:30%;width:55%"></div></div>
+          <div class="scale"><span>0.0</span><span>win-rate p̂</span><span>1.0</span></div>
+        </div>
+      </div>
+
+      <div class="card a-violet reveal">
+        <div class="ic">🌊</div>
+        <span class="tag">VERTICAL B · gateway_core</span>
+        <h3>Streaming data plane</h3>
+        <p>A gRPC bidi proxy over a frozen <code>Frame</code> envelope.</p>
+        <ul>
+          <li>Per-session <b style="color:var(--txt)">sticky canary</b> - <code>hash(session)&nbsp;⊕&nbsp;version</code></li>
+          <li>Shadow path is <b style="color:var(--txt)">drop-on-full</b> so it can't throttle the primary</li>
+          <li>Routing flips via Postgres <b style="color:var(--txt)">LISTEN/NOTIFY</b> - zero dropped streams</li>
+        </ul>
+      </div>
+
+      <div class="card a-amber reveal">
+        <div class="ic">↺</div>
+        <span class="tag">VERTICAL C · agentctl/rollback</span>
+        <h3>Stateful rollback</h3>
+        <p>Only the routing flip is one hard ACID transaction; state realignment is per-pointer idempotent.</p>
+        <ul>
+          <li><b style="color:var(--txt)">Two live routing tables</b> made unrepresentable by a partial-unique index</li>
+          <li>A <code>CHECK</code> makes a side-effect <b style="color:var(--txt)">impossible to record as reversible</b></li>
+          <li>Touched irreversible state? It reports <code>compensating</code>, never fakes <code>completed</code></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- architecture -->
+<section id="architecture">
+  <div class="wrap">
+    <span class="eyebrow">architecture</span>
+    <h2 class="h2">One data model, one seam</h2>
+    <p class="lead">A frozen <code>Frame</code> envelope makes the Python reference proxy and the Go data plane wire-compatible. Postgres is the ACID system-of-record; a routing flip fires <code>pg_notify</code> and the live gateway re-routes in milliseconds.</p>
+    <div class="archwrap reveal">
+      <svg class="arch" viewBox="0 0 1000 600" role="img"
+           aria-label="agentctl architecture: a developer CLI and browser/SDK clients feed a Python control plane and a Go data plane, coordinated by Postgres, with DuckDB and ClickHouse">
+        <defs>
+          <marker id="ah-mut"    viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#93a1b8"/></marker>
+          <marker id="ah-violet" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8b7bff"/></marker>
+          <marker id="ah-cyan"   viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#37e0c8"/></marker>
+          <marker id="ah-blue"   viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#4aa8ff"/></marker>
+          <marker id="ah-amber"  viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ffb14e"/></marker>
+        </defs>
+
+        <!-- connectors -->
+        <path class="link" d="M170,86 L170,150" marker-end="url(#ah-mut)"/>
+        <path class="link flow" d="M830,86 L830,300" stroke="var(--violet)" marker-end="url(#ah-violet)"/>
+        <path class="link flow" d="M178,236 L212,300" stroke="var(--cyan)" marker-end="url(#ah-cyan)"/>
+        <path class="link" d="M300,420 L398,470" stroke="var(--blue)" marker-start="url(#ah-blue)" marker-end="url(#ah-blue)"/>
+        <path class="link flow" d="M592,470 C 606,448 602,434 608,422" stroke="var(--blue)" marker-end="url(#ah-blue)"/>
+        <path class="link" d="M150,420 L146,470" stroke="var(--cyan)" marker-end="url(#ah-cyan)"/>
+        <path class="link" d="M812,420 L804,470" stroke="var(--amber)" marker-end="url(#ah-amber)"/>
+        <path class="link" d="M460,356 L560,356" stroke="var(--stroke2)" stroke-dasharray="5 6" marker-start="url(#ah-mut)" marker-end="url(#ah-mut)"/>
+
+        <!-- moving flow dots -->
+        <circle class="dot" r="4" fill="currentColor" style="color:var(--violet)"><animateMotion dur="2.6s" repeatCount="indefinite" path="M830,86 L830,300"/></circle>
+        <circle class="dot" r="3.5" fill="currentColor" style="color:var(--cyan)"><animateMotion dur="2.2s" repeatCount="indefinite" path="M178,236 L212,300"/></circle>
+        <circle class="dot" r="4" fill="currentColor" style="color:var(--blue)"><animateMotion dur="2.5s" repeatCount="indefinite" path="M592,470 C 606,448 602,434 608,422"/></circle>
+        <circle class="dot" r="3.5" fill="currentColor" style="color:var(--mut)"><animateMotion dur="2.4s" repeatCount="indefinite" path="M170,86 L170,150"/></circle>
+
+        <!-- connector labels -->
+        <text class="lab" x="846" y="186" text-anchor="start">gRPC bidi</text>
+        <text class="lab" x="234" y="276" text-anchor="start">webhook (in-process)</text>
+        <text class="lab" x="352" y="452" text-anchor="middle">ACID</text>
+        <text class="lab" x="620" y="442" text-anchor="start">LISTEN/NOTIFY</text>
+        <text class="lab" x="620" y="456" text-anchor="start">re-route · 0 dropped</text>
+        <text class="lab" x="138" y="450" text-anchor="end">eval traces</text>
+        <text class="lab" x="828" y="450" text-anchor="start">OTel spans</text>
+        <text class="lab" x="510" y="346" text-anchor="middle">frozen Frame envelope</text>
+
+        <!-- nodes -->
+        <g class="node"><rect class="card" x="70" y="28" width="200" height="58" rx="13"/>
+          <text class="ttl" x="170" y="53" text-anchor="middle">Developer</text>
+          <text class="sub" x="170" y="72" text-anchor="middle">agentctl push</text></g>
+
+        <g class="node"><rect class="card" x="730" y="28" width="200" height="58" rx="13"/>
+          <text class="ttl" x="830" y="53" text-anchor="middle">Browser / SDK</text>
+          <text class="sub" x="830" y="72" text-anchor="middle">gRPC bidi · WebSocket</text></g>
+
+        <g class="node n-cyan"><rect class="card" x="70" y="150" width="212" height="86" rx="14"/>
+          <text class="ttl" x="176" y="184" text-anchor="middle">CLI</text>
+          <text class="sub" x="176" y="206" text-anchor="middle">typer + rich</text>
+          <text class="sub" x="176" y="223" text-anchor="middle">pack · preview · merge / block</text></g>
+
+        <g class="node n-green"><rect class="card" x="60" y="300" width="400" height="120" rx="16"/>
+          <text class="ttl" x="260" y="337" text-anchor="middle">CONTROL PLANE · Python</text>
+          <text class="sub" x="260" y="364" text-anchor="middle">webhook → register deployment → isolated preview</text>
+          <text class="sub" x="260" y="386" text-anchor="middle">eval-gate: SPRT + Wilson CI</text>
+          <text class="sub" x="260" y="404" text-anchor="middle">rollback: atomic flip + checkpoints</text></g>
+
+        <g class="node n-violet"><rect class="card" x="560" y="300" width="380" height="120" rx="16"/>
+          <text class="ttl" x="750" y="337" text-anchor="middle">GO DATA PLANE</text>
+          <text class="sub" x="750" y="364" text-anchor="middle">gateway_core · frozen-header proxy</text>
+          <text class="sub" x="750" y="386" text-anchor="middle">sticky canary · shadow (drop-on-full)</text>
+          <text class="sub" x="750" y="404" text-anchor="middle">token streaming · zero buffering</text></g>
+
+        <g class="node n-cyan"><rect class="card" x="60" y="470" width="170" height="90" rx="14"/>
+          <text class="ttl" x="145" y="508" text-anchor="middle" style="font-size:15px">DuckDB</text>
+          <text class="sub" x="145" y="530" text-anchor="middle">eval traces</text>
+          <text class="sub" x="145" y="546" text-anchor="middle">(local OLAP)</text></g>
+
+        <g class="node n-blue"><rect class="card" x="290" y="470" width="300" height="90" rx="14"/>
+          <text class="ttl" x="440" y="506" text-anchor="middle">Postgres · system of record</text>
+          <text class="sub" x="440" y="530" text-anchor="middle">deployments · routing</text>
+          <text class="sub" x="440" y="546" text-anchor="middle">checkpoints · audit</text></g>
+
+        <g class="node n-amber"><rect class="card" x="650" y="470" width="290" height="90" rx="14"/>
+          <text class="ttl" x="795" y="508" text-anchor="middle" style="font-size:15px">ClickHouse</text>
+          <text class="sub" x="795" y="530" text-anchor="middle">telemetry warehouse</text>
+          <text class="sub" x="795" y="546" text-anchor="middle">(opt-in)</text></g>
+      </svg>
+
+      <div class="arch-legend">
+        <span><i style="background:var(--cyan)"></i>A · probabilistic eval-gate</span>
+        <span><i style="background:var(--violet)"></i>B · streaming data plane</span>
+        <span><i style="background:var(--amber)"></i>C · stateful rollback</span>
+      </div>
+      <figcaption class="figcap">A frozen <b style="color:var(--mut)">Frame</b> envelope makes both planes wire-compatible; a routing flip in Postgres fires <code style="color:var(--mut)">pg_notify</code> and the live gateway re-routes in milliseconds.</figcaption>
+    </div>
+  </div>
+</section>
+
+<!-- status -->
+<section id="status">
+  <div class="wrap">
+    <span class="eyebrow">radical honesty</span>
+    <h2 class="h2">What's real vs. what's a scaffold</h2>
+    <p class="lead">The code is more honest than most READMEs - so here's exactly what runs on a fresh checkout, what's simulated in the demo, and what's still next.</p>
+    <div class="matrix reveal">
+      <div class="row"><div class="what">Eval-gate math - Wilson CI, Wald SPRT, McNemar/Beta/BH<small>pure scipy, no I/O</small></div><span class="pill real">REAL · TESTED</span></div>
+      <div class="row"><div class="what">Atomic routing flip + schema-enforced rollback honesty<small>advisory lock · partial-unique index · side_effect ⇒ irreversible CHECK</small></div><span class="pill real">REAL · TESTED</span></div>
+      <div class="row"><div class="what">RBAC (both planes), proto conformance, pgvector/Qdrant, ClickHouse/Grafana, Helm, PyPI wheel<small>opt-in via env / compose profile</small></div><span class="pill real">REAL · TESTED</span></div>
+      <div class="row"><div class="what">Python <code>grpc.aio</code> data plane<small>the proxy that runs by default</small></div><span class="pill real">REAL</span></div>
+      <div class="row"><div class="what">Go data plane (<code>gateway_core</code>)<small>compiled & conformance-checked in CI; <code>make build</code> to run locally</small></div><span class="pill scaf">SOURCE · CI</span></div>
+      <div class="row"><div class="what">Demo eval samples<small>seeded synthetic judge - bring your own for real preferences</small></div><span class="pill sim">SIMULATED</span></div>
+      <div class="row"><div class="what">Header-only zero-copy forwarding · bounded Go shadow queue<small>realized in the Python reference; planned for Go</small></div><span class="pill next">PLANNED</span></div>
+    </div>
+    <div class="legend">
+      <span><span class="pill real" style="padding:2px 8px">REAL</span> runs &amp; tested today</span>
+      <span><span class="pill scaf" style="padding:2px 8px">SOURCE · CI</span> compiles in CI, build to run</span>
+      <span><span class="pill sim" style="padding:2px 8px">SIMULATED</span> demo data</span>
+      <span><span class="pill next" style="padding:2px 8px">PLANNED</span> on the roadmap</span>
+    </div>
+  </div>
+</section>
+
+<!-- quickstart -->
+<section id="start">
+  <div class="wrap">
+    <span class="eyebrow">quickstart</span>
+    <h2 class="h2">From clean machine to <code>agentctl push</code></h2>
+    <p class="lead">About five minutes, most of it Docker pulling images.</p>
+    <div class="term reveal" style="margin-top:30px">
+      <div class="term-bar">
+        <i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i>
+        <span class="t">bash</span>
+      </div>
+      <div class="term-body"><span class="m"># clone + install the control plane and the CLI</span>
+<span class="c">git clone</span> <span class="w">https://github.com/Swa-s-tik/VercelForAgents</span> &amp;&amp; <span class="c">cd</span> VercelForAgents
+<span class="c">pip install</span> -e .
+
+<span class="m"># bring up Postgres + Go gateway + Python control plane</span>
+<span class="c">docker compose</span> up --build
+
+<span class="m"># in a second terminal - the flagship streaming demo</span>
+<span class="c">cd</span> examples/support_agent &amp;&amp; <span class="c">agentctl push</span>
+
+<span class="m"># watch the gate block a deliberate regression</span>
+<span class="c">agentctl push</span> --simulate-regression   <span class="r"># ⛔ PR BLOCKED</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <div class="cta reveal">
+    <h2>Boring, instant, reversible -<br><span class="grad-txt">now for agents.</span></h2>
+    <p>The complexity lives in the backend. The surface you touch is one command.</p>
+    <div class="hero-btns" style="justify-content:center">
+      <a class="btn btn-primary" href="https://github.com/Swa-s-tik/VercelForAgents" target="_blank" rel="noopener">★ Star on GitHub</a>
+      <a class="btn btn-ghost" href="https://github.com/Swa-s-tik/VercelForAgents/blob/main/docs/ARCHITECTURE_PRD.md" target="_blank" rel="noopener">Read the design</a>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap foot-in">
+    <div><b class="grad-txt">agentctl</b> - Vercel for AI agents · Apache-2.0</div>
+    <div style="display:flex;gap:22px">
+      <a href="https://github.com/Swa-s-tik/VercelForAgents" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/Swa-s-tik/VercelForAgents/blob/main/docs/ROADMAP_1_0.md" target="_blank" rel="noopener">Roadmap</a>
+      <a href="https://github.com/Swa-s-tik/VercelForAgents/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // reveal on scroll
+  const io = new IntersectionObserver((es)=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+  // copy command
+  const cb=document.getElementById('copyBtn');
+  cb.addEventListener('click',()=>{navigator.clipboard.writeText('agentctl push').then(()=>{cb.textContent='copied ✓';setTimeout(()=>cb.textContent='copy',1400)})});
+
+  // animated Wilson interval - tightens around 0.53–0.80 then calls ALLOW
+  const frames=[
+    {n:18,lo:.30,hi:.85,v:'CONTINUE',col:'var(--cyan)'},
+    {n:27,lo:.41,hi:.83,v:'CONTINUE',col:'var(--cyan)'},
+    {n:35,lo:.49,hi:.81,v:'CONTINUE',col:'var(--cyan)'},
+    {n:41,lo:.530,hi:.804,v:'ALLOW ✓',col:'var(--green)'},
+  ];
+  const ci=document.getElementById('wci'), wn=document.getElementById('wn'), wv=document.getElementById('wv');
+  let i=0;
+  function step(){
+    const f=frames[i%frames.length];
+    ci.style.left=(f.lo*100)+'%'; ci.style.width=((f.hi-f.lo)*100)+'%';
+    wn.textContent='SPRT · n='+f.n;
+    wv.textContent='Wilson95 ['+f.lo.toFixed(2)+', '+f.hi.toFixed(2)+'] · '+f.v;
+    wv.style.color=f.col;
+    i++; setTimeout(step, i%frames.length===0?2200:900);
+  }
+  step();
+</script>
+</body>
+</html>
