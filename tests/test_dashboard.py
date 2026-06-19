@@ -59,6 +59,31 @@ def test_empty_states():
     assert "No deployments" in render.deployments_table([], {})
     assert "No rollbacks" in render.history_table([])
     assert "No gateway traffic" in render.traffic_table([])
+    assert "No routing changes" in render.routing_history_table([])
+
+
+def test_routing_history_table_pure():
+    rows = [{"version": 3, "is_live": True, "reason": "promote x to 100%", "arms": "x 100%",
+             "created_by": "cli", "created_at": "t"},
+            {"version": 2, "is_live": False, "reason": "canary x at 25%",
+             "arms": "y 75%, x 25% (canary)", "created_by": "cli", "created_at": "t"}]
+    html = render.routing_history_table(rows)
+    assert "v3" in html and "live" in html and "promote x to 100%" in html
+    assert "canary x at 25%" in html and "25% (canary)" in html
+
+
+def test_routing_history_query_after_rollout():
+    from agentctl.rollback.rollout import set_canary
+    from agentctl.rollback.seed import SHA_A
+    conn = _seeded_conn()
+    try:
+        set_canary(conn, DEMO_PROJECT_ID, SHA_A, 25, actor="t")
+        rows = q.routing_history(conn, DEMO_PROJECT_ID)
+        assert "canary" in " ".join(r["reason"] or "" for r in rows)   # the rollout shows in the timeline
+        assert sum(1 for r in rows if r["is_live"]) == 1                # exactly one live version
+        assert any("(canary)" in (r["arms"] or "") for r in rows)      # the per-arm summary
+    finally:
+        conn.close()
 
 
 def test_traffic_table_renders_arms():

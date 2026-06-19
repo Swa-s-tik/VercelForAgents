@@ -79,3 +79,11 @@ deployment offers **canary 10%** and **promote** buttons that POST to `/api/roll
 (canary, then promote) or back (rollback) entirely from the UI. Verified by a render test (buttons
 only on eligible deploys) + a TestClient that canaries then promotes over seeded Postgres, plus a live
 smoke.
+
+## Update: delivery timeline
+
+A "Delivery timeline" reads every `routing_tables` version - each carries the reason a
+rollback/canary/promote wrote, plus who/when and a per-arm weight summary - so forward and back
+traffic changes appear as one history (the rollbacks-only list couldn't show canaries/promotes).
+Surfaced in both the dashboard and `agentctl status`. Verified by a pure render test + a query test
+that runs a canary and finds it in the timeline.

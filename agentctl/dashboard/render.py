@@ -161,8 +161,26 @@ def traffic_table(rows: list[dict]) -> str:
             "<th>avg latency</th><th>shadow</th></tr></thead><tbody>" + "".join(out) + "</tbody></table>")
 
 
+def routing_history_table(rows: list[dict]) -> str:
+    if not rows:
+        return '<p class="dim">No routing changes yet.</p>'
+    out = []
+    for r in rows:
+        live = '<span class="tag ok">live</span>' if r["is_live"] else ""
+        out.append(
+            "<tr>"
+            f'<td class="mono">v{r["version"]} {live}</td>'
+            f'<td>{_esc(r["reason"] or "-")}</td>'
+            f'<td class="mono dim">{_esc(r["arms"])}</td>'
+            f'<td class="dim">{_esc(r["created_by"])}</td>'
+            f'<td class="dim">{_esc(r["created_at"])}</td>'
+            "</tr>")
+    return ('<table><thead><tr><th>version</th><th>reason</th><th>arms</th><th>by</th><th>when</th>'
+            "</tr></thead><tbody>" + "".join(out) + "</tbody></table>")
+
+
 def dashboard_inner(deployments, honesty, history, routing_version, verdicts=None, traffic=None,
-                    flash: str = "") -> str:
+                    routing=None, flash: str = "") -> str:
     """The swappable inner region (#dash) - re-rendered after a rollback POST."""
     v = "-" if routing_version is None else f"v{routing_version}"
     flash_html = f'<div class="flash">{flash}</div>' if flash else ""
@@ -172,6 +190,8 @@ def dashboard_inner(deployments, honesty, history, routing_version, verdicts=Non
         f"{deployments_table(deployments, honesty, verdicts)}</section>"
         f"<section><h2>Live traffic <span class=\"dim\">- recent gateway streams by arm</span></h2>"
         f"{traffic_table(traffic or [])}</section>"
+        f'<section><h2>Delivery timeline <span class="dim">- every routing change</span></h2>'
+        f"{routing_history_table(routing or [])}</section>"
         f"<section><h2>Rollback history</h2>{history_table(history)}</section>")
 
 
@@ -210,7 +230,7 @@ code{background:#161b22;padding:1px 6px;border-radius:4px}
 
 
 def page(deployments, honesty, history, routing_version, project_id: str, verdicts=None,
-         traffic=None) -> str:
+         traffic=None, routing=None) -> str:
     return (
         "<!doctype html><html lang=en><head><meta charset=utf-8>"
         "<meta name=viewport content='width=device-width,initial-scale=1'>"
@@ -219,5 +239,5 @@ def page(deployments, honesty, history, routing_version, project_id: str, verdic
         f"<style>{_CSS}</style></head><body>"
         "<header><h1>agentctl</h1>"
         f'<span class="sub">deploy control plane - project {_short(project_id)}</span></header>'
-        f'<main id="dash">{dashboard_inner(deployments, honesty, history, routing_version, verdicts, traffic)}</main>'
+        f'<main id="dash">{dashboard_inner(deployments, honesty, history, routing_version, verdicts, traffic, routing)}</main>'
         "</body></html>")

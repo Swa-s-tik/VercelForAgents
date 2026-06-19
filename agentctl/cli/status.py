@@ -46,6 +46,7 @@ def build_snapshot(conn, project_id: str) -> dict:
         "verdicts": q.verdicts_by_commit(),
         "traffic": q.stream_telemetry(conn, project_id),
         "history": q.rollback_history(conn, project_id, limit=5),
+        "routing": q.routing_history(conn, project_id, limit=8),
         "routing_version": q.live_routing_version(conn, project_id),
     }
 
@@ -77,6 +78,15 @@ def render(snap: dict, project_id: str, console: Console) -> None:
                        f"{lat:.0f} ms" if lat is not None else "-",
                        str(int(r.get("shadow_dropped") or 0)))
         console.print(tt)
+
+    if snap.get("routing"):
+        gt = Table(title="Delivery timeline (every routing change)", title_justify="left")
+        for c in ("version", "reason", "arms", "by"):
+            gt.add_column(c)
+        for r in snap["routing"]:
+            ver = f"v{r['version']}" + (" [green]live[/]" if r["is_live"] else "")
+            gt.add_row(ver, r["reason"] or "-", f"[dim]{r['arms']}[/]", f"[dim]{r['created_by']}[/]")
+        console.print(gt)
 
     if snap["history"]:
         rt = Table(title="Recent rollbacks", title_justify="left")
