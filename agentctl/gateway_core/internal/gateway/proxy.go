@@ -62,13 +62,15 @@ func (s *Server) Converse(stream acpv1.AgentStream_ConverseServer) error {
 		return err
 	}
 
-	// shadow channels (responses discarded; drop on send error - never block the primary)
-	var shadowSends []func(*acpv1.Frame)
+	// shadow lanes: each is a BOUNDED, drop-on-full pipe drained by its own goroutine (see
+	// shadow.go). Lossy by design, so a slow/stuck shadow backend can never flow-control the
+	// primary — offer() in the pump below never blocks. Shadow responses are discarded.
+	var shadowPipes []*shadowPipe
 	for _, sb := range shadows {
 		if sc, err := s.client(sb.Endpoint); err == nil {
 			if scall, err := sc.Converse(context.Background()); err == nil {
-				shadowSends = append(shadowSends, func(f *acpv1.Frame) { _ = scall.Send(f) })
-				go func() { // drain + discard
+				shadowPipes = append(shadowPipes, newShadowPipe(scall.Send))
+				go func() { // drain + discard shadow responses
 					for {
 						if _, err := scall.Recv(); err != nil {
 							return
@@ -79,21 +81,25 @@ func (s *Server) Converse(stream acpv1.AgentStream_ConverseServer) error {
 		}
 	}
 
-	// pump: client -> primary (+ shadows), starting with the first frame
+	// pump: client -> primary (lossless, blocking) + shadows (lossy, non-blocking offer), starting
+	// with the first frame. A slow shadow fills its bounded buffer and drops; the primary is untouched.
 	go func() {
 		_ = up.Send(first)
-		for _, send := range shadowSends {
-			send(first)
+		for _, sp := range shadowPipes {
+			sp.offer(first)
 		}
 		for {
 			in, err := stream.Recv()
 			if err != nil {
 				_ = up.CloseSend()
+				for _, sp := range shadowPipes {
+					sp.close()
+				}
 				return
 			}
 			_ = up.Send(in)
-			for _, send := range shadowSends {
-				send(in) // lossy fan-out
+			for _, sp := range shadowPipes {
+				sp.offer(in) // lossy, never blocks the primary
 			}
 		}
 	}()
