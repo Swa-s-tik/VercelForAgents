@@ -30,8 +30,8 @@ protobuf stubs, so you do **not** need `protoc`).
 ### a. Clone
 
 ```bash
-git clone https://github.com/Swa-s-tik/VercelForAgents.git
-cd VercelForAgents
+git clone https://github.com/Swa-s-tik/agentctl.git
+cd agentctl
 ```
 
 ### b. Install the CLI (in a virtualenv)

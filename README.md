@@ -2,9 +2,9 @@
 
 # agentctl - Vercel for AI Agents
 
-[![CI](https://github.com/Swa-s-tik/VercelForAgents/actions/workflows/ci.yml/badge.svg)](https://github.com/Swa-s-tik/VercelForAgents/actions/workflows/ci.yml)
+[![CI](https://github.com/Swa-s-tik/agentctl/actions/workflows/ci.yml/badge.svg)](https://github.com/Swa-s-tik/agentctl/actions/workflows/ci.yml)
 
-**[🌐 Live landing page →](https://swa-s-tik.github.io/VercelForAgents/)**
+**[🌐 Live landing page →](https://swa-s-tik.github.io/agentctl/)**
 
 **Ship an agent with one command: `agentctl push`.**
 Preview deploys, statistical eval-gating, a streaming gRPC gateway, and 1-click stateful
@@ -81,7 +81,7 @@ charged cards - those don't roll back when the code does). agentctl handles both
 ## 5-minute quickstart
 
 ```bash
-git clone https://github.com/Swa-s-tik/VercelForAgents && cd VercelForAgents
+git clone https://github.com/Swa-s-tik/agentctl && cd agentctl
 
 pip install -e .                                              # control plane + CLI
 docker compose -f deploy/docker-compose.yml up -d postgres    # system-of-record

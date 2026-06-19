@@ -7,7 +7,7 @@ honest.
 ## Dev setup
 
 ```bash
-git clone https://github.com/Swa-s-tik/VercelForAgents.git && cd VercelForAgents
+git clone https://github.com/Swa-s-tik/agentctl.git && cd agentctl
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e .                                    # control plane + CLI
 docker compose -f deploy/docker-compose.yml up -d postgres   # pgvector/pgvector:pg16 (SoR)

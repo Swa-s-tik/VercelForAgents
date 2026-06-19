@@ -4,8 +4,8 @@ description: The agentctl control plane - Postgres SoR, the Go data-plane gatewa
 type: application
 version: 0.1.0
 appVersion: "1.0.0"
-home: https://github.com/Swa-s-tik/VercelForAgents
+home: https://github.com/Swa-s-tik/agentctl
 sources:
-  - https://github.com/Swa-s-tik/VercelForAgents
+  - https://github.com/Swa-s-tik/agentctl
 maintainers:
   - name: agentctl authors

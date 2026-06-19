@@ -42,10 +42,10 @@ dependencies = [
 qdrant = ["qdrant-client>=1.7"]
 
 [project.urls]
-Homepage = "https://github.com/Swa-s-tik/VercelForAgents"
-Repository = "https://github.com/Swa-s-tik/VercelForAgents"
-Changelog = "https://github.com/Swa-s-tik/VercelForAgents/blob/main/CHANGELOG.md"
-Issues = "https://github.com/Swa-s-tik/VercelForAgents/issues"
+Homepage = "https://github.com/Swa-s-tik/agentctl"
+Repository = "https://github.com/Swa-s-tik/agentctl"
+Changelog = "https://github.com/Swa-s-tik/agentctl/blob/main/CHANGELOG.md"
+Issues = "https://github.com/Swa-s-tik/agentctl/issues"
 
 [project.scripts]
 agentctl = "agentctl.cli:main"
