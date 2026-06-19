@@ -181,6 +181,18 @@ def _add_dashboard_parser(sub) -> None:
     p.set_defaults(func=_cmd_dashboard)
 
 
+def _cmd_status(args) -> int:
+    from agentctl.cli.status import run_status
+    return run_status(project_id=args.project_id)
+
+
+def _add_status_parser(sub) -> None:
+    p = sub.add_parser("status", help="terminal summary: deployments, eval verdicts, traffic, rollbacks")
+    p.add_argument("--project-id", default=None, dest="project_id",
+                   help="project to summarize (default: the bootstrap/demo project)")
+    p.set_defaults(func=_cmd_status)
+
+
 # --------------------------------------------------------------------------- #
 # entrypoint
 # --------------------------------------------------------------------------- #
@@ -191,6 +203,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_push_parser(sub)
     _add_eval_parsers(sub)
     _add_dashboard_parser(sub)
+    _add_status_parser(sub)
     for mod, fn in (("agentctl.rollback.cli", "add_rollback_parser"),
                     ("agentctl.gateway.cli", "add_gateway_parsers"),
                     ("agentctl.control.cli", "add_webhook_parsers"),
