@@ -7,6 +7,10 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Delivery timeline** (post-1.0). A unified routing-change history (from `routing_tables`): every
+  rollback, canary, and promote shown with its reason, the per-arm weight split, and who/when - in
+  both the dashboard and `agentctl status`. The rollbacks-only history couldn't show forward changes;
+  this does. New: `queries.routing_history`, `render.routing_history_table`.
 - **Forward rollout in the dashboard** (post-1.0). Each eligible deployment now has **canary 10%** and
   **promote** buttons (next to rollback) that POST to `/api/rollout/{sha}/{pct}` -> `set_canary`, so the
   web UI drives traffic forward and back - a symmetric control surface. New dashboard tests cover the

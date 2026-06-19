@@ -50,6 +50,7 @@ def test_status_renders_deployments_and_traffic():
         assert "Deployments" in text
         assert "bbbb2222bbbb" in text          # the live deployment commit
         assert "Live traffic" in text and "vB" in text
+        assert "Delivery timeline" in text     # routing-change history is shown
     finally:
         conn.close()
 

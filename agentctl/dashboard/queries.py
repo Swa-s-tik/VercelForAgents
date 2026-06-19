@@ -133,6 +133,32 @@ def stream_telemetry(conn: psycopg.Connection, project_id: str, limit: int = 500
         return cur.fetchall()
 
 
+def routing_history(conn: psycopg.Connection, project_id: str, limit: int = 12) -> list[dict]:
+    """Every routing change as one delivery timeline - each `routing_tables` version carries the
+    reason a rollback/canary/promote wrote, plus who and when. Unifies forward and back traffic
+    changes that the rollbacks-only history can't show. Includes a one-line weight summary per arm."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT rt.version, rt.is_live, rt.reason, rt.created_by, rt.created_at,
+                   COALESCE(string_agg(
+                       substr(d.git_commit_sha, 1, 12) || ' ' || (rr.weight / 100)::text || '%%'
+                       || CASE WHEN rr.is_canary THEN ' (canary)'
+                               WHEN rr.shadow_target THEN ' (shadow)' ELSE '' END,
+                       ', ' ORDER BY rr.weight DESC), '') AS arms
+            FROM controlplane.routing_tables rt
+            LEFT JOIN controlplane.routing_rules rr ON rr.routing_table_id = rt.id
+            LEFT JOIN controlplane.deployments d    ON d.id = rr.deployment_id
+            WHERE rt.project_id = %s
+            GROUP BY rt.id, rt.version, rt.is_live, rt.reason, rt.created_by, rt.created_at
+            ORDER BY rt.version DESC
+            LIMIT %s
+            """,
+            [project_id, limit],
+        )
+        return cur.fetchall()
+
+
 def rollback_history(conn: psycopg.Connection, project_id: str, limit: int = 10) -> list[dict]:
     with conn.cursor() as cur:
         cur.execute(
