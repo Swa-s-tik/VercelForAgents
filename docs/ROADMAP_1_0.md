@@ -35,6 +35,11 @@ local commit, without breaking the existing zero-config demo or test suite.
 - ✅ **Full RBAC enforcement on the Go gateway** - delivered
   ([GO_GATEWAY_RBAC](design/GO_GATEWAY_RBAC.md)). The Go gateway now validates keys against Postgres
   (sha256 lookup + tenant/role checks + a TTL cache), not just a presence check.
+- ✅ **Header-only zero-copy forwarding on the Go gateway** - delivered
+  ([GO_ZEROCOPY_FORWARDING](design/GO_ZEROCOPY_FORWARDING.md)). Opt-in (`AGENTCTL_ZEROCOPY=1`) fast
+  path that routes by scanning `session_id` and tags `canary_arm` by appending to the wire bytes,
+  with no per-frame deserialize (8.5x/30x faster on the hot ops, conformance-protected). Retires the
+  last "Not yet" in the README status matrix.
 - OTLP-collector telemetry path alongside the native ClickHouse exporter.
 - ✅ **Control-plane + Health proto messages in the conformance suite** - delivered
   ([PROTO_CONFORMANCE](design/PROTO_CONFORMANCE.md)). The whole wire contract (Frame + control plane

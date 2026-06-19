@@ -7,6 +7,17 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Header-only zero-copy forwarding on the Go data plane** (post-1.0). An opt-in
+  (`AGENTCTL_ZEROCOPY=1`) fast path that proxies Frames by touching the wire bytes directly instead
+  of deserializing each one: it routes by scanning `session_id` (field 1) and tags
+  `attributes["canary_arm"]` (field 16) by appending a map entry to the tail - both decoder-safe and
+  leaving the frozen header (fields 1-4) untouched. Benchmarked at **8.5x faster / 4.4x fewer allocs**
+  on the outbound forward and **30x / 13x** on the routing read. Behavior-preserving passthrough codec
+  (typed RPCs like Health are delegated to protobuf unchanged); the default data plane is byte-for-byte
+  what 1.0 shipped. Proven against every golden conformance fixture and end-to-end via `agentctl push`
+  + the gateway auth e2e on both paths. Retires the last "Not yet" in the README status matrix. New:
+  `gateway_core/internal/wire/*`, `internal/gateway/{rawcodec,proxy_raw}.go`, generic `shadowPipe`,
+  `docs/design/GO_ZEROCOPY_FORWARDING.md`.
 - **PyPI packaging** (post-1.0). `pyproject.toml` now ships the runtime `.sql` schema files as
   package data (so `apply_schema` works from a `pip`-installed wheel), plus PyPI metadata
   (classifiers, keywords, project URLs). Validated locally: `python -m build` → wheel + sdist,
