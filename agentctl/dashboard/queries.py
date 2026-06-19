@@ -152,6 +152,7 @@ def stream_telemetry(conn: psycopg.Connection, project_id: str, limit: int = 500
                    count(*)                                               AS streams,
                    COALESCE(sum((attributes->>'measure.frames_out')::float), 0)    AS frames,
                    COALESCE(sum((attributes->>'measure.shadow_dropped')::float), 0) AS shadow_dropped,
+                   COALESCE(sum((attributes->>'measure.shadow_received')::float), 0) AS shadow_received,
                    avg((end_unixnano - start_unixnano) / 1e6)             AS avg_latency_ms
             FROM recent
             GROUP BY attributes->>'canary_arm'

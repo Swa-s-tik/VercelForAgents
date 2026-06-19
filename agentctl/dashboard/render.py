@@ -148,17 +148,30 @@ def traffic_table(rows: list[dict]) -> str:
         lat = r.get("avg_latency_ms")
         lat_s = f"{lat:.0f} ms" if lat is not None else "-"
         dropped = int(r.get("shadow_dropped") or 0)
-        drop_s = f'<span class="tag irrev">{dropped} dropped</span>' if dropped else ""
+        drop_s = f'<span class="tag irrev">{dropped} dropped</span> ' if dropped else ""
         out.append(
             "<tr>"
             f'<td><span class="tag shadow">{_esc(r["arm"])}</span></td>'
             f'<td class="mono">{int(r["streams"])}</td>'
             f'<td class="mono">{int(r.get("frames") or 0)}</td>'
             f'<td class="mono">{lat_s}</td>'
-            f"<td>{drop_s}</td>"
+            f"<td>{drop_s}{_shadow_divergence(r)}</td>"
             "</tr>")
     return ('<table><thead><tr><th>canary arm</th><th>streams</th><th>frames</th>'
-            "<th>avg latency</th><th>shadow</th></tr></thead><tbody>" + "".join(out) + "</tbody></table>")
+            "<th>avg latency</th><th>shadow output</th></tr></thead><tbody>"
+            + "".join(out) + "</tbody></table>")
+
+
+def _shadow_divergence(r: dict) -> str:
+    """Show what the shadow produced vs the primary - the point of shadowing. A large gap means the
+    candidate would have responded very differently."""
+    recv = int(r.get("shadow_received") or 0)
+    frames = int(r.get("frames") or 0)
+    if recv == 0:
+        return '<span class="dim">-</span>'
+    div = abs(frames - recv) / max(frames, 1)
+    cls = "irrev" if div >= 0.20 else "ok"        # >=20% output divergence is worth a look
+    return f'<span class="tag {cls}">{recv} frames ({div * 100:.0f}% diverge)</span>'
 
 
 def routing_history_table(rows: list[dict]) -> str:

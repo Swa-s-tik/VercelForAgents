@@ -15,6 +15,12 @@ All notable changes to agentctl are documented here. The format is based on
   persistence on/off.
 
 ### Added
+- **Shadow output divergence** (post-1.0). The shadow lane mirrors traffic to a candidate backend but
+  used to discard its responses with no signal. The proxy now emits `shadow_received` (frames the
+  shadow produced) per stream, and the dashboard's Live-traffic panel shows shadow-vs-primary output
+  divergence per arm (`N frames (X% diverge)`, flagged at >=20%) - so a shadow actually tells you how
+  a candidate *would have* responded, not just that it didn't crash. New: `_record_metrics` shared by
+  both proxy paths; `queries.stream_telemetry` + `render` updated.
 - **AgentDeployment watch-loop controller** (post-1.0). `agentctl operator run` (a kopf wrapper, opt
   dep `agentctl[operator]`) watches AgentDeployment CRs and reconciles each via the tested
   `reconcile_body` -> writes `.status`. The Helm chart deploys it (off by default, `operator.enabled`)
