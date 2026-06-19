@@ -7,6 +7,11 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Eval verdict in the dashboard** (post-1.0). The dashboard now joins the *eval* surface to the
+  *deploy* surface: each deployment shows its eval-gate verdict (ALLOW/BLOCK + suite count + Wilson
+  CI), read from the DuckDB eval store and matched to the deployment by commit SHA (exact or prefix).
+  Read-only, degrades to '-' when there is no eval store - one integrated control-plane view of the
+  whole lifecycle. New: `queries.verdicts_by_commit`, `render.match_verdict`, dashboard tests.
 - **Hard tenancy FK** (post-1.0). `deployments.project_id` now has a real foreign key to
   `projects(id)` (RESTRICT) - 1.0 deliberately kept it a soft, seeded reference. Added by ALTER after
   the bootstrap project (the historic DEMO_PROJECT_ID) is seeded, so every deployment resolves to a

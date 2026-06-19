@@ -34,6 +34,31 @@ def _arm_cell(d: dict) -> str:
     return bar + " " + " ".join(tags)
 
 
+def match_verdict(sha: str, verdicts: dict[str, dict]) -> dict | None:
+    """Find a commit's eval verdict, tolerating full-vs-short SHAs (the deployment may store the full
+    git sha while the eval run stored a prefix, or vice versa). Exact match first, then prefix."""
+    if not verdicts:
+        return None
+    if sha in verdicts:
+        return verdicts[sha]
+    for csha, v in verdicts.items():
+        n = min(len(sha), len(csha))
+        if n >= 8 and (sha[:n] == csha[:n]):
+            return v
+    return None
+
+
+def _verdict_cell(v: dict | None) -> str:
+    if not v:
+        return '<span class="dim">-</span>'
+    icon = {"ALLOW": "✅", "BLOCK": "⛔", "INCONCLUSIVE": "🟡", "INSUFFICIENT_DATA": "⏳"}.get(v["decision"], "•")
+    cls = {"ALLOW": "ok", "BLOCK": "irrev"}.get(v["decision"], "")
+    suites = f' <span class="dim">x{v["suites"]}</span>' if v.get("suites", 1) > 1 else ""
+    ci = (f' <span class="dim">[{v["wilson_low"]:.2f}, {v["wilson_high"]:.2f}]</span>'
+          if v.get("wilson_low") is not None else "")
+    return f'<span class="tag {cls}">{icon} {_esc(v["decision"])}</span>{suites}{ci}'
+
+
 def _honesty_cell(h: dict | None) -> str:
     if not h or h["pointers"] == 0:
         return '<span class="dim">-</span>'
@@ -55,9 +80,11 @@ def _rollback_btn(d: dict) -> str:
             f'rollback to this</button>')
 
 
-def deployments_table(deployments: list[dict], honesty: dict[int, dict]) -> str:
+def deployments_table(deployments: list[dict], honesty: dict[int, dict],
+                      verdicts: dict[str, dict] | None = None) -> str:
     if not deployments:
         return '<p class="dim">No deployments yet. Run <code>agentctl push</code>.</p>'
+    verdicts = verdicts or {}
     rows = []
     for d in deployments:
         rows.append(
@@ -65,6 +92,7 @@ def deployments_table(deployments: list[dict], honesty: dict[int, dict]) -> str:
             f'<td class="mono">#{d["id"]}</td>'
             f'<td class="mono">{_short(d["git_commit_sha"])}</td>'
             f"<td>{_status_pill(d['status'])}</td>"
+            f"<td>{_verdict_cell(match_verdict(d['git_commit_sha'], verdicts))}</td>"
             f"<td>{_arm_cell(d)}</td>"
             f"<td>{_honesty_cell(honesty.get(d['id']))}</td>"
             f'<td class="dim">{_esc(d["created_by"])}</td>'
@@ -72,7 +100,7 @@ def deployments_table(deployments: list[dict], honesty: dict[int, dict]) -> str:
             "</tr>")
     return (
         '<table><thead><tr>'
-        "<th>#</th><th>commit</th><th>status</th><th>live traffic</th>"
+        "<th>#</th><th>commit</th><th>status</th><th>eval verdict</th><th>live traffic</th>"
         "<th>rollback honesty</th><th>by</th><th></th>"
         "</tr></thead><tbody>" + "".join(rows) + "</tbody></table>")
 
@@ -96,14 +124,14 @@ def history_table(history: list[dict]) -> str:
             "</tr></thead><tbody>" + "".join(rows) + "</tbody></table>")
 
 
-def dashboard_inner(deployments, honesty, history, routing_version, flash: str = "") -> str:
+def dashboard_inner(deployments, honesty, history, routing_version, verdicts=None, flash: str = "") -> str:
     """The swappable inner region (#dash) - re-rendered after a rollback POST."""
     v = "-" if routing_version is None else f"v{routing_version}"
     flash_html = f'<div class="flash">{flash}</div>' if flash else ""
     return (
         f"{flash_html}"
         f'<section><h2>Deployments <span class="dim">- live routing {v}</span></h2>'
-        f"{deployments_table(deployments, honesty)}</section>"
+        f"{deployments_table(deployments, honesty, verdicts)}</section>"
         f"<section><h2>Rollback history</h2>{history_table(history)}</section>")
 
 
@@ -139,7 +167,7 @@ code{background:#161b22;padding:1px 6px;border-radius:4px}
 """
 
 
-def page(deployments, honesty, history, routing_version, project_id: str) -> str:
+def page(deployments, honesty, history, routing_version, project_id: str, verdicts=None) -> str:
     return (
         "<!doctype html><html lang=en><head><meta charset=utf-8>"
         "<meta name=viewport content='width=device-width,initial-scale=1'>"
@@ -148,5 +176,5 @@ def page(deployments, honesty, history, routing_version, project_id: str) -> str
         f"<style>{_CSS}</style></head><body>"
         "<header><h1>agentctl</h1>"
         f'<span class="sub">deploy control plane - project {_short(project_id)}</span></header>'
-        f'<main id="dash">{dashboard_inner(deployments, honesty, history, routing_version)}</main>'
+        f'<main id="dash">{dashboard_inner(deployments, honesty, history, routing_version, verdicts)}</main>'
         "</body></html>")
