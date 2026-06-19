@@ -38,8 +38,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# managed vector backend (AGENTCTL_STATE_BACKEND=qdrant); core install stays slim.
+# managed vector backends (AGENTCTL_STATE_BACKEND=qdrant|pinecone); core install stays slim.
 qdrant = ["qdrant-client>=1.7"]
+pinecone = ["pinecone>=5"]
 # real LLM-as-judge for the eval-gate (agentctl.eval.judge.LLMJudge); needs ANTHROPIC_API_KEY.
 judge = ["anthropic>=0.40"]
 
