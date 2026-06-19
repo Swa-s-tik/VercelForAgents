@@ -82,3 +82,14 @@ the proxy holds frames across goroutine hops for the shadow lanes). "Zero-copy" 
 serialization* - no typed allocation, no `Marshal`/`Unmarshal` - not a literally zero-`memcpy` path.
 A true splice (forward the transport buffer without any copy) would need deeper grpc-transport hooks
 and is out of scope.
+
+## Update: Python reference proxy parity
+
+The Python reference proxy now has the same opt-in header-only fast path (`AGENTCTL_ZEROCOPY=1`).
+`agentctl/gateway/wire.py` mirrors the Go `wire` package - `session_id()` scans field 1, and
+`set_canary_arm()` appends a field-16 map entry - and is pinned byte-for-byte against the **same**
+golden conformance fixtures (`tests/test_wire_py.py`, 20 cases incl. the multi-key attributes stress).
+`proxy.serve()` registers a raw `Converse` (identity (de)serializers, raw bytes) with typed `Health`
+when zero-copy is on; `raw_converse` routes/forwards/tags entirely on the wire bytes. Verified by an
+orchestration test (fake router + fake raw call) and a live smoke (the zero-copy server starts and
+Health responds). Default registration is unchanged.

@@ -182,7 +182,7 @@ on a fresh checkout vs. what's simulated or still a scaffold:
 | Demo eval samples | **Simulated by default** (seeded synthetic judge) - or gate on real model judgments via `LLMJudge` (`agentctl[judge]`); a cached real-judgment fixture is gated in CI |
 | Demo `issue_refund` interception ("real refunds: 0") | **Real** - the sandbox intercepts the *actual streamed* tool call and mocks it in preview, so no real refund fires |
 | Bounded drop-on-full shadow queue (both runtimes) | **Real** - a slow shadow can't backpressure the primary on either the Python or the Go path |
-| Header-only zero-copy forwarding (Go) | **Real (opt-in `AGENTCTL_ZEROCOPY=1`)** - routes by scanning `session_id` and tags `canary_arm` by appending to the wire bytes, no per-frame deserialize; 8.5x/30x faster on the hot ops, conformance-protected. Default path unchanged; Python proxy still deserializes |
+| Header-only zero-copy forwarding (both runtimes) | **Real (opt-in `AGENTCTL_ZEROCOPY=1`)** - routes by scanning `session_id` and tags `canary_arm` by appending to the wire bytes, no per-frame deserialize; 8.5x/30x faster on the hot Go ops, conformance-protected. The Go data plane and the Python reference proxy both have the fast path (default registration unchanged) |
 
 > **Versioning note:** the package is tagged `1.0.0` to mark the roadmap complete; treat the wire,
 > `StateStore`, and auth contracts as the stable surfaces. There are no external production users yet.
