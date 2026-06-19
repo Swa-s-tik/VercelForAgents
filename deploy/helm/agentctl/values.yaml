@@ -38,5 +38,13 @@ gateway:
   requireKey: false               # set true to enforce API keys at the gateway
   resources: {}
 
+# the AgentDeployment watch-loop controller (kopf). Off by default; the image must include
+# agentctl[operator]. With the CRD applied, `kubectl apply` of an AgentDeployment drives a rollout.
+operator:
+  enabled: false
+  image: agentctl/operator:dev
+  pullPolicy: IfNotPresent
+  resources: {}
+
 # require an API key on the HTTP surfaces (control plane). Default permissive (zero-config).
 requireKey: false

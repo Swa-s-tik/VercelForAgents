@@ -1,0 +1,78 @@
+{{- if .Values.operator.enabled }}
+# The AgentDeployment watch-loop controller: ServiceAccount + cluster RBAC (watch CRs, patch status)
+# + a Deployment running `agentctl operator run` (kopf). Off by default; needs the agentctl[operator]
+# image and the CRD applied (deploy/crds/agentdeployment-crd.yaml).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "agentctl.fullname" . }}-operator
+  labels: {{- include "agentctl.labels" . | nindent 4 }}
+    app.kubernetes.io/component: operator
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "agentctl.fullname" . }}-operator
+  labels: {{- include "agentctl.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["agentctl.dev"]
+    resources: ["agentdeployments", "agentdeployments/status"]
+    verbs: ["get", "list", "watch", "patch", "update"]
+  # kopf needs to post events + manage its peering/finalizers
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "agentctl.fullname" . }}-operator
+  labels: {{- include "agentctl.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "agentctl.fullname" . }}-operator
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "agentctl.fullname" . }}-operator
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agentctl.fullname" . }}-operator
+  labels: {{- include "agentctl.labels" . | nindent 4 }}
+    app.kubernetes.io/component: operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: operator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: operator
+    spec:
+      serviceAccountName: {{ include "agentctl.fullname" . }}-operator
+      initContainers:
+        - name: wait-schema
+          image: {{ .Values.postgres.image }}
+          command:
+            - sh
+            - -c
+            - until psql "{{ include "agentctl.pgDsn" . }}" -tAc "select to_regclass('controlplane.routing_tables')" | grep -q routing_tables; do echo "waiting for schema"; sleep 2; done
+      containers:
+        - name: operator
+          image: {{ .Values.operator.image }}
+          imagePullPolicy: {{ .Values.operator.pullPolicy }}
+          command: ["agentctl", "operator", "run"]
+          env:
+            - { name: AGENTCTL_PG_DSN, value: {{ include "agentctl.pgDsn" . | quote }} }
+            - { name: AGENTCTL_PROJECT_ID, value: {{ .Values.gateway.projectId | quote }} }
+          resources: {{- toYaml .Values.operator.resources | nindent 12 }}
+{{- end }}
