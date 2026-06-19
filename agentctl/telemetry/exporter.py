@@ -13,10 +13,13 @@ standard SDK; only the exporter wiring differs.
 """
 from __future__ import annotations
 
+import os
+
 import psycopg
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import (
+    BatchSpanProcessor,
     ConsoleSpanExporter,
     SimpleSpanProcessor,
     SpanExporter,
@@ -105,11 +108,19 @@ def _make_exporter(backend: str) -> SpanExporter:
 
 
 def make_tracer_provider(service_name: str = "agentctl", project_id: str = DEMO_PROJECT_ID,
-                         backend: str | None = None) -> TracerProvider:
+                         backend: str | None = None, batch: bool | None = None) -> TracerProvider:
+    """Build a tracer provider. ``batch`` (or env ``AGENTCTL_TELEMETRY_BATCH=1``) wraps the exporter
+    in a BatchSpanProcessor - spans are queued and flushed off the hot path, so a busy gateway does
+    not pay an export round-trip per span. Default stays SimpleSpanProcessor (synchronous, simplest)
+    so the demo's spans are visible immediately."""
     backend = backend or TELEMETRY_BACKEND
+    if batch is None:
+        batch = os.environ.get("AGENTCTL_TELEMETRY_BATCH", "") == "1"
     resource = Resource.create({"service.name": service_name, "project_id": project_id})
     provider = TracerProvider(resource=resource)
-    provider.add_span_processor(SimpleSpanProcessor(_make_exporter(backend)))
+    exporter = _make_exporter(backend)
+    processor = BatchSpanProcessor(exporter) if batch else SimpleSpanProcessor(exporter)
+    provider.add_span_processor(processor)
     return provider
 
 

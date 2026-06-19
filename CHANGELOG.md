@@ -7,6 +7,11 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Batched telemetry export** (post-1.0). `make_tracer_provider(batch=True)` (or
+  `AGENTCTL_TELEMETRY_BATCH=1`) wraps any span exporter in a `BatchSpanProcessor`, so a busy gateway
+  queues spans and flushes them off the hot path instead of paying an export round-trip per span.
+  Default stays the synchronous `SimpleSpanProcessor` (spans visible immediately for the demo). Works
+  with every backend (postgres/clickhouse/otlp). New: `tests/test_telemetry_batch.py`.
 - **Gated rollout** (post-1.0). `agentctl rollback rollout <commit> --require-gate <PR>` runs that
   PR's eval gate and rolls out only if it ALLOWs - the safety interlock tying eval to delivery, so a
   regression can't be promoted by mistake (BLOCK/INCONCLUSIVE -> no routing change). New:
