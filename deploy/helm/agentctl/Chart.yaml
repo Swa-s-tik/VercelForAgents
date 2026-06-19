@@ -2,7 +2,7 @@ apiVersion: v2
 name: agentctl
 description: The agentctl control plane - Postgres SoR, the Go data-plane gateway, and the Python control plane.
 type: application
-version: 0.1.0
+version: 0.1.1
 appVersion: "1.0.0"
 home: https://github.com/Swa-s-tik/agentctl
 sources:

@@ -43,5 +43,15 @@ are no hooks and no deadlocks:
 | `controlplane.image` / `gateway.image` | `agentctl/{controlplane,gateway}:dev` | build + load or push these |
 | `gateway.projectId` | demo project UUID | the tenant the gateway serves |
 | `requireKey` / `gateway.requireKey` | `false` | enforce API keys on HTTP / gRPC |
+| `postgres.persistence.enabled` | `false` | `false` = emptyDir (kind/demo, no storage class); `true` = a PVC of `postgres.persistence.size` |
+| `postgres.persistence.size` | `1Gi` | PVC size, used only when persistence is enabled |
+| `schemaInit.runOnUpgrade` | `false` | schema-init runs once at install; `helm upgrade` does not re-run it (avoids the immutable-Job error and a destructive re-apply). Set `true` to re-apply on the next upgrade |
 
 See `values.yaml` for the full set.
+
+### Upgrades
+
+`helm upgrade` is idempotent: the schema-init Job is rendered only on install (it does a destructive
+`DROP + recreate`), so an upgrade neither re-wipes the control plane nor hits the "Job is immutable"
+error. To intentionally re-apply the schema on an upgrade, set `--set schemaInit.runOnUpgrade=true`
+(the Job name is revision-suffixed so the re-run never collides).

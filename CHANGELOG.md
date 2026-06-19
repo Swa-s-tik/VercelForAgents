@@ -6,6 +6,14 @@ All notable changes to agentctl are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+- **Helm chart nits**: `postgres.storage` was set but unused (the volume was always `emptyDir`) - now
+  `postgres.persistence.{enabled,size}` selects a real PVC vs emptyDir (default emptyDir for kind).
+  And `helm upgrade` is idempotent: the destructive schema-init Job renders only on install (gated by
+  `schemaInit.runOnUpgrade`, off by default), so an upgrade no longer hits the immutable-Job error or
+  re-wipes the control plane. Verified via `helm lint` + `helm template` across install/upgrade and
+  persistence on/off.
+
 ### Added
 - **Header-only fast path on the Python reference proxy** (post-1.0). The Python proxy now has the
   same opt-in (`AGENTCTL_ZEROCOPY=1`) header-only forwarding as the Go data plane: `gateway/wire.py`
