@@ -32,11 +32,11 @@ agentctl is a control plane; its trust boundaries are deliberate and documented.
 
 ### Data-integrity guarantees
 - **Honesty is schema-enforced:** `CHECK (mutation_class <> 'side_effect' OR reversibility =
-  'irreversible')` — the system cannot record an external side effect (a charge, an email) as
+  'irreversible')` - the system cannot record an external side effect (a charge, an email) as
   reversible. Rollbacks that touch irreversible state report `compensating`, never a fake
   `completed`.
 - The live routing flip is a single advisory-locked ACID transaction guarded by the
-  `one_live_routing_per_project` partial-unique index — the gateway never reads a torn routing table.
+  `one_live_routing_per_project` partial-unique index - the gateway never reads a torn routing table.
 
 ## Secrets hygiene
 - Never commit real API keys, `AGENTCTL_WEBHOOK_SECRET`, or database credentials. The compose files

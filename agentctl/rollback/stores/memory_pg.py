@@ -1,7 +1,7 @@
 """Real Postgres event-sourced memory StateStore (Workstream 1).
 
-Same contract as MemoryGraphStub — an append-only event log with a single HEAD =
-(snapshot_seq, log_offset) that rollback rewinds — backed by memorystore tables. Reuses the shared
+Same contract as MemoryGraphStub - an append-only event log with a single HEAD =
+(snapshot_seq, log_offset) that rollback rewinds - backed by memorystore tables. Reuses the shared
 ``digest`` formula verbatim so sealed ``state_digest`` values match after restore. Bound to the
 orchestrator's connection + project.
 """

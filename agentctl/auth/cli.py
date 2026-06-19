@@ -1,4 +1,4 @@
-"""`agentctl auth ...` — API key management (Workstream 2).
+"""`agentctl auth ...` - API key management (Workstream 2).
 
 Key creation/revocation require the owner role; listing requires viewer. The caller authenticates
 with --api-key / AGENTCTL_API_KEY (absent -> bootstrap owner, for local/zero-config use).

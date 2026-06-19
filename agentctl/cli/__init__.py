@@ -1,12 +1,12 @@
 """Unified `agentctl` command line. Subcommands are added per vertical:
 
-  push          — package an agent dir -> preview -> live eval-gate -> merge/block (Phase 3)
-  eval ingest   — ingest paired candidate/baseline eval records into DuckDB   (Vertical A)
-  gate          — compute the statistical merge gate for a run or a whole PR  (Vertical A)
-  rollback      — apply schema / seed / 1-click rollback / show-audit         (Vertical C)
-  gateway       — run the gRPC streaming gateway                             (Vertical B)
-  agent         — run an echo agent backend                                  (Vertical B)
-  webhook       — git webhook emulator                                       (Phase 2)
+  push          - package an agent dir -> preview -> live eval-gate -> merge/block (Phase 3)
+  eval ingest   - ingest paired candidate/baseline eval records into DuckDB   (Vertical A)
+  gate          - compute the statistical merge gate for a run or a whole PR  (Vertical A)
+  rollback      - apply schema / seed / 1-click rollback / show-audit         (Vertical C)
+  gateway       - run the gRPC streaming gateway                             (Vertical B)
+  agent         - run an echo agent backend                                  (Vertical B)
+  webhook       - git webhook emulator                                       (Phase 2)
 
 Handlers lazy-import their vertical so an unrelated subcommand never pays for
 (or fails on) another vertical's dependencies. The production-grade `push` UX lives in
@@ -23,7 +23,7 @@ DEFAULT_DB = os.environ.get("AGENTCTL_DUCKDB", ".agentctl/eval.duckdb")
 
 
 # --------------------------------------------------------------------------- #
-# Phase 3 — push (developer experience)
+# Phase 3 - push (developer experience)
 # --------------------------------------------------------------------------- #
 def _cmd_push(args) -> int:
     from agentctl.cli.main import run_push
@@ -47,7 +47,7 @@ def _add_push_parser(sub) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Vertical A — eval / gate
+# Vertical A - eval / gate
 # --------------------------------------------------------------------------- #
 def _cmd_eval_ingest(args) -> int:
     from agentctl.eval.ingest import ingest_paired
@@ -75,7 +75,7 @@ def _cmd_gate(args) -> int:
         verdict, decisions = gate_pr(store, args.pr, cfg)
         for suite, d in decisions.items():
             print(format_decision(suite, d) + "\n")
-        print(f"PR #{args.pr} VERDICT: {verdict.decision}  — {verdict.reason}")
+        print(f"PR #{args.pr} VERDICT: {verdict.decision}  - {verdict.reason}")
         print(f"  BH-significant per suite: {verdict.bh_significant}")
         return verdict.exit_code
 

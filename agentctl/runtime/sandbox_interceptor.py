@@ -2,7 +2,7 @@
 
 Agents reach external tools through ONE dispatch seam (`ToolInvoker.invoke`). In preview /
 shadow mode we inject a `SandboxInterceptor` instead of the live invoker: side-effecting,
-write, or external tool calls are caught and answered side-effect-free —
+write, or external tool calls are caught and answered side-effect-free -
   * write tools mutate an in-memory MockStateEnvironment (never the real backend);
   * external tools are resolved via the mock registry (cassette -> stub -> autogen);
 read/pure tools may pass through. Every mocked call is flagged so traces show `mocked=true`,

@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 export GRPC_VERBOSITY=NONE
 
 echo "############################################################"
-echo "#        agentctl — complete end-to-end pipeline           #"
+echo "#        agentctl - complete end-to-end pipeline           #"
 echo "############################################################"
 python demo/complete_pipeline.py
 rc=$?

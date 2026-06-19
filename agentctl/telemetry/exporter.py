@@ -2,13 +2,13 @@
 
 Standard OTel spans, with a backend chosen by env var ``TELEMETRY_BACKEND``:
   * ``postgres`` (default): PostgresSpanExporter writes spans into controlplane.otel_spans
-    (the append-only buffer — same OTel shape that maps 1:1 to the ClickHouse warehouse).
+    (the append-only buffer - same OTel shape that maps 1:1 to the ClickHouse warehouse).
   * ``console``: ConsoleSpanExporter (local debugging).
   * ``otlp`` / ``clickhouse``: OTLP exporter to a collector (prod warehouse path), if the
     opentelemetry-exporter-otlp package is installed; else falls back to console.
 
 The span schema (names, attribute keys) is the boundary contract with the prod telemetry
-engine — flip one env var, no schema change. gate/gateway code emits spans through the
+engine - flip one env var, no schema change. gate/gateway code emits spans through the
 standard SDK; only the exporter wiring differs.
 """
 from __future__ import annotations

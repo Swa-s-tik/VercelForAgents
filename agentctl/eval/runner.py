@@ -38,5 +38,5 @@ def format_decision(suite: str, d: GateDecision) -> str:
         f"win_rate={d.win_rate:.3f}\n"
         f"  Wilson95 = [{d.wilson_low:.3f}, {d.wilson_high:.3f}]   margin(nim)={d.margin:.2f}\n"
         f"  McNemar p = {d.p_value:.3f} (paired)   Bayes P(theta>nim) = {d.bayes_p_better:.3f}\n"
-        f"  DECISION: {d.decision}  — {d.reason}"
+        f"  DECISION: {d.decision}  - {d.reason}"
     )

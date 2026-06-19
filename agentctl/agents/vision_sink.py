@@ -2,7 +2,7 @@
 
 Drains inbound BinaryChunk frames (simulated video/TensorRT input) as fast as it can and
 emits a TINY ack per frame echoing (index, pts_nanos) so the client can measure end-to-end
-latency without sending the 1 MB payload back. This isolates the proxy's UPLOAD path —
+latency without sending the 1 MB payload back. This isolates the proxy's UPLOAD path -
 the heavy direction for a vision pipeline.
 """
 from __future__ import annotations

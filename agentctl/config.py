@@ -10,11 +10,11 @@ PG_DSN = os.environ.get(
 # DuckDB local OLAP store (Vertical A).
 DUCKDB_PATH = os.environ.get("AGENTCTL_DUCKDB", ".agentctl/eval.duckdb")
 
-# External-store STUB persistence (Vertical C demo) — lets `seed` and `rollback` run as
+# External-store STUB persistence (Vertical C demo) - lets `seed` and `rollback` run as
 # separate CLI invocations and still share the simulated vector/memory/schema state.
 STATE_FILE = os.environ.get("AGENTCTL_STATE_FILE", ".agentctl/state/external_state.json")
 
-# State backend for the vector/memory stores: 'json' (default, file-backed stubs — zero infra) or
+# State backend for the vector/memory stores: 'json' (default, file-backed stubs - zero infra) or
 # 'pgvector' (real pgvector + Postgres event-sourced memory; needs the pgvector image + schema).
 STATE_BACKEND = os.environ.get("AGENTCTL_STATE_BACKEND", "json")  # json | pgvector | qdrant
 VECTOR_DIM = int(os.environ.get("AGENTCTL_VECTOR_DIM", "8"))

@@ -1,11 +1,11 @@
-"""Statistical eval-gating — the corrected core of Vertical A.
+"""Statistical eval-gating - the corrected core of Vertical A.
 
 WHY THIS EXISTS (and why the spec's literal rule is wrong)
 ----------------------------------------------------------
 The product spec proposed: "block if win-rate vs main < 52% with a p-value > 0.05."
 That rule is statistically incoherent:
 
-  * ``p > 0.05`` means "NOT statistically significant" — i.e. *no evidence of a
+  * ``p > 0.05`` means "NOT statistically significant" - i.e. *no evidence of a
     difference*. Conditioning a BLOCK on non-significance means you block precisely
     when you have the least evidence, and you let a regression through the moment it
     becomes noisy enough to clear p>0.05. Backwards.
@@ -14,7 +14,7 @@ That rule is statistically incoherent:
   * It conflates the effect threshold (a statement about the *true* rate) with the
     inference (a statement about a *test*).
 
-THE CORRECTED GATE — a non-inferiority test driven by a confidence interval.
+THE CORRECTED GATE - a non-inferiority test driven by a confidence interval.
 We compare a candidate (PR commit) against ``main`` on a *paired* binary preference
 signal (same eval item, both arms -> WIN / LOSS / TIE for the candidate). We then ask:
 "is the candidate's true win-rate credibly at/above a margin ``nim``?"
@@ -29,7 +29,7 @@ are computed and REPORTED for context, but they do not independently gate (that 
 re-introduce the dual-criterion incoherence above).
 
 ``nim`` (non-inferiority margin) defaults to 0.50 ("must not be worse than a coin-flip
-vs main"). Setting ``nim = 0.52`` turns this into a *superiority* gate — the only
+vs main"). Setting ``nim = 0.52`` turns this into a *superiority* gate - the only
 statistically sound reading of the spec's "52%".
 
 Pure & dependency-light: scipy.stats only (norm, binomtest, beta). No statsmodels.
@@ -69,7 +69,7 @@ class GateDecision:
     win_rate: float
     wilson_low: float
     wilson_high: float
-    p_value: float          # exact McNemar (paired) — REPORTED, not gating
+    p_value: float          # exact McNemar (paired) - REPORTED, not gating
     bayes_p_better: float   # P(theta > nim | Beta posterior)
     bayes_cred_low: float
     bayes_cred_high: float
@@ -169,7 +169,7 @@ def evaluate_gate(wins: int, losses: int, ties: int, cfg: GateConfig = GateConfi
       3. ALLOW              if wilson_low  >= nim       (whole CI at/above margin)
       4. INCONCLUSIVE       otherwise                  (CI straddles the margin)
 
-    Note: INSUFFICIENT_DATA is checked first by design — we want at least ``n_min``
+    Note: INSUFFICIENT_DATA is checked first by design - we want at least ``n_min``
     samples before the gate produces an *actionable* verdict, even a damning one,
     because tiny eval suites are often unrepresentative. (An alternative ordering would
     let a catastrophic small-n result BLOCK early; we deliberately prefer "collect more".)

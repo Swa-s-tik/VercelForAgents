@@ -1,7 +1,7 @@
 # agentctl Helm chart
 
-Deploys the agentctl core 3-tier — Postgres (system-of-record), the Go data-plane gateway, and the
-Python control plane — to Kubernetes. Mirrors the default `docker compose up` topology. (Telemetry
+Deploys the agentctl core 3-tier - Postgres (system-of-record), the Go data-plane gateway, and the
+Python control plane - to Kubernetes. Mirrors the default `docker compose up` topology. (Telemetry
 and Qdrant stay compose-profile opt-ins; they're out of this core chart.)
 
 ## Quickstart (local, kind)

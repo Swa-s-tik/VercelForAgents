@@ -1,5 +1,5 @@
 // Golden-wire conformance builder (Workstream 4): builds a Frame from the shared,
-// language-neutral spec in tests/fixtures/conformance_frames.json — the SAME file the Python
+// language-neutral spec in tests/fixtures/conformance_frames.json - the SAME file the Python
 // suite (tests/test_conformance.py) reads. Both runtimes marshal deterministically and assert the
 // bytes equal the committed golden_hex, proving the Go data plane and the Python reference proxy
 // are wire-identical for the frozen Frame envelope.
@@ -128,7 +128,7 @@ func BuildFrame(s Spec) (*acpv1.Frame, error) {
 }
 
 // HeaderFrame builds a Frame with only the frozen header (fields 1-4). Its marshal IS
-// byte-identical to Python's (no oneof/map to reorder) — the contract header-only forwarding needs.
+// byte-identical to Python's (no oneof/map to reorder) - the contract header-only forwarding needs.
 func HeaderFrame(s Spec) *acpv1.Frame {
 	return &acpv1.Frame{
 		SessionId: s.SessionID, StreamId: u64(s.StreamID), Seq: u64(s.Seq),

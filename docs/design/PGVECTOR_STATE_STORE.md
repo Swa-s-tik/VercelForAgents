@@ -1,12 +1,12 @@
-# Design — pgvector state stores (Workstream 1)
+# Design - pgvector state stores (Workstream 1)
 
 **Status:** done · **Commit:** `feat(state): …`
 
 ## Why
 
 Vertical C's rollback realigns external state, but the vector and memory stores were JSON-file
-**stubs**. 1.0 ships real backends — pgvector for the vector store and Postgres for an event-sourced
-memory graph — without changing the rollback orchestrator or the honesty contract, and without
+**stubs**. 1.0 ships real backends - pgvector for the vector store and Postgres for an event-sourced
+memory graph - without changing the rollback orchestrator or the honesty contract, and without
 breaking the offline tests.
 
 ## The contract that must not change
@@ -20,16 +20,16 @@ reversible pointer. So the real adapters **reuse the stub's digest formulas verb
 - memory: `digest(f"{snapshot_seq}:{log_offset}")`
 
 Because the formula and the namespace/coordinate strings are identical, a checkpoint sealed against
-the stub verifies against the pgvector adapter and vice-versa — Phase 3 is untouched.
+the stub verifies against the pgvector adapter and vice-versa - Phase 3 is untouched.
 
 ## Mapping the stub semantics onto Postgres
 
 | Stub concept | pgvector / Postgres |
 |---|---|
 | commit-scoped collection (namespace) | `vectorstore.embeddings(project_id, collection, vector_id, version, embedding vector(8))` |
-| the live alias | `vectorstore.live_alias(project_id PK, collection)` — **restore = idempotent upsert here** |
+| the live alias | `vectorstore.live_alias(project_id PK, collection)` - **restore = idempotent upsert here** |
 | event-sourced log | `memorystore.event_log(project_id, seq, op, origin)` (append-only) |
-| HEAD `(snapshot_seq, log_offset)` | `memorystore.head(project_id PK, …)` — **restore = rewind this row** |
+| HEAD `(snapshot_seq, log_offset)` | `memorystore.head(project_id PK, …)` - **restore = rewind this row** |
 
 Restore is an O(1) idempotent pointer move; historical collections and log rows are **never
 mutated**, so a rolled-past deployment's state is genuinely restorable (and its memory events sit
@@ -39,7 +39,7 @@ tombstoned past HEAD, replayable on roll-forward). Verified e2e: rolling B→A f
 ## Wiring (env-gated; default unchanged)
 
 - `AGENTCTL_STATE_BACKEND=pgvector` + a live conn → `rollback.py::_stores()` returns
-  `PgVectorStore` / `PgMemoryStore` (relational_schema stays the stub — its rollback is a
+  `PgVectorStore` / `PgMemoryStore` (relational_schema stays the stub - its rollback is a
   migration-refusal, deliberately Postgres-independent). **Default (unset) → the stubs**, so all
   offline tests run with zero infra.
 - The compose image is `pgvector/pgvector:pg16` (a strict superset of `postgres:16`; the full suite
@@ -71,7 +71,7 @@ AGENTCTL_STATE_BACKEND=pgvector agentctl rollback run aaaa1111aaaa   # alias v37
 ## Boundaries / post-1.0
 
 - Qdrant / Pinecone adapters behind the same `StateStore` protocol (the protocol is already the
-  only seam — a new adapter drops into `_stores()`).
+  only seam - a new adapter drops into `_stores()`).
 - Real embeddings + ANN queries (1.0 stores a demo zero-vector; the digest contract is
   namespace-based, independent of vector content).
 - Per-`graph_id` memory HEADs (1.0 uses one HEAD per project, matching the stub).

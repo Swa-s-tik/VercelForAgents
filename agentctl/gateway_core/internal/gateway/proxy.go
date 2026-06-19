@@ -12,7 +12,7 @@ import (
 	acpv1 "github.com/agentctl/gateway_core/gen/acpv1"
 )
 
-// Server is the streaming reverse proxy — the Go counterpart of agentctl/gateway/proxy.py.
+// Server is the streaming reverse proxy - the Go counterpart of agentctl/gateway/proxy.py.
 // Routes/splits/mirrors Frames; never parses token text. Designed for a header-only fast
 // path: forward the opaque Frame, touching only the routing header (fields 1-4).
 type Server struct {
@@ -62,7 +62,7 @@ func (s *Server) Converse(stream acpv1.AgentStream_ConverseServer) error {
 		return err
 	}
 
-	// shadow channels (responses discarded; drop on send error — never block the primary)
+	// shadow channels (responses discarded; drop on send error - never block the primary)
 	var shadowSends []func(*acpv1.Frame)
 	for _, sb := range shadows {
 		if sc, err := s.client(sb.Endpoint); err == nil {

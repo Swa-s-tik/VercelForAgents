@@ -1,4 +1,4 @@
-# agentctl — Road to 1.0
+# agentctl - Road to 1.0
 
 The three verticals, the Go data-plane cutover, the streaming demo, and the `agentctl push` CLI are
 runnable and tested. 1.0 is the production-hardening pass named in the PRD (§9): the four
@@ -26,18 +26,18 @@ local commit, without breaking the existing zero-config demo or test suite.
 
 ## Post-1.0 (deliberately deferred)
 
-- ✅ **Qdrant** vector adapter behind the `StateStore` protocol — delivered
+- ✅ **Qdrant** vector adapter behind the `StateStore` protocol - delivered
   ([QDRANT_STATE_STORE](design/QDRANT_STATE_STORE.md)). A Pinecone adapter is the remaining one.
-- ✅ **`users` + `role_bindings`** — delivered ([AUTH_RBAC](design/AUTH_RBAC.md)). A key can belong
+- ✅ **`users` + `role_bindings`** - delivered ([AUTH_RBAC](design/AUTH_RBAC.md)). A key can belong
   to a user; its effective role is the user's project binding (`COALESCE(binding, key.role)`),
   resolved identically on both planes. Standalone keys keep the 1.0 role-per-key behavior.
 - A hard FK `deployments.project_id → projects.id` (1.0 keeps it a soft, seeded reference).
-- ✅ **Full RBAC enforcement on the Go gateway** — delivered
+- ✅ **Full RBAC enforcement on the Go gateway** - delivered
   ([GO_GATEWAY_RBAC](design/GO_GATEWAY_RBAC.md)). The Go gateway now validates keys against Postgres
   (sha256 lookup + tenant/role checks + a TTL cache), not just a presence check.
 - OTLP-collector telemetry path alongside the native ClickHouse exporter.
-- ✅ **Control-plane + Health proto messages in the conformance suite** — delivered
+- ✅ **Control-plane + Health proto messages in the conformance suite** - delivered
   ([PROTO_CONFORMANCE](design/PROTO_CONFORMANCE.md)). The whole wire contract (Frame + control plane
   + Health) is now cross-runtime decode-verified.
-- ✅ **Helm chart** — delivered ([HELM_K8S](design/HELM_K8S.md)); deploys the core 3-tier to
+- ✅ **Helm chart** - delivered ([HELM_K8S](design/HELM_K8S.md)); deploys the core 3-tier to
   Kubernetes, verified end-to-end on a kind cluster. A full CRD operator + hosted GitHub App remain.

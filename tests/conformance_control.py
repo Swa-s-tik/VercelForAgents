@@ -1,7 +1,7 @@
 """Control-plane + Health message conformance builders (extends Workstream 4 beyond the Frame).
 
 Covers the ControlPlane service messages (RouteTable/Backend/ShadowPolicy, ResolveRouteRequest,
-WatchRequest, TelemetryBatch/Event/Ack) and the Health messages — exercising nested messages,
+WatchRequest, TelemetryBatch/Event/Ack) and the Health messages - exercising nested messages,
 repeated fields, a map<string,double>, and enums. Same honest contract as the Frame suite: protobuf
 deterministic marshaling is per-runtime canonical, so we assert (1) a Python golden lock and (2)
 cross-runtime decode interop (Go decodes the Python wire, Python decodes the Go wire), NOT
@@ -66,7 +66,7 @@ def _event(cp, sid, arm):
     e = cp.TelemetryEvent(session_id=sid, deployment_id="dep-7", canary_arm=arm,
                           event_type="stream", labels={"region": "us"},
                           ts_unix_nanos=1700000000000000001)
-    e.measures["latency_ms"] = 33.5      # map<string,double> — the new wire shape vs Frame's map
+    e.measures["latency_ms"] = 33.5      # map<string,double> - the new wire shape vs Frame's map
     e.measures["frames"] = 21.0
     return e
 

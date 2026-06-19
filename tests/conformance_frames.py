@@ -136,7 +136,7 @@ def golden_hex(pb, spec: dict) -> str:
 
 def header_hex(pb, spec: dict) -> str:
     """Marshal a header-only Frame (frozen fields 1-4). These bytes ARE byte-identical across
-    runtimes — no oneof/map to reorder — which is exactly the contract the gateway's header-only
+    runtimes - no oneof/map to reorder - which is exactly the contract the gateway's header-only
     forwarding relies on."""
     h = pb.Frame(session_id=spec["session_id"], stream_id=spec["stream_id"], seq=spec["seq"],
                  direction=ENUM["direction"][spec["direction"]])
@@ -149,8 +149,8 @@ def regenerate() -> Path:
     out = {"_doc": "Golden-wire conformance vectors. golden_hex = Python deterministic proto "
                    "marshal (the reference wire). header_hex = marshal of the frozen header "
                    "(fields 1-4), which IS byte-identical across runtimes. NOTE: protobuf "
-                   "deterministic marshaling is per-runtime canonical, not cross-runtime — Go "
-                   "orders the oneof after the map, Python before it — so the conformance contract "
+                   "deterministic marshaling is per-runtime canonical, not cross-runtime - Go "
+                   "orders the oneof after the map, Python before it - so the conformance contract "
                    "is (a) byte-identical frozen header + (b) lossless cross-runtime decode, NOT "
                    "byte-identical full frames. Regenerate via `python tests/conformance_frames.py`.",
            "frames": []}

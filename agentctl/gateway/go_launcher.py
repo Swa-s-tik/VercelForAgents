@@ -1,9 +1,9 @@
-"""Launch & supervise the compiled Go data-plane gateway — the cutover from the Python
+"""Launch & supervise the compiled Go data-plane gateway - the cutover from the Python
 grpc.aio proxy (Milestone 1).
 
 The Go binary reads its routing table from Postgres and LISTENs for ``routing_changed``, so the
 Python control plane's flip transactions (Vertical C) update THIS live gateway. This module just
-launches the process, health-checks it over gRPC, and tears it down — mirroring the runtime
+launches the process, health-checks it over gRPC, and tears it down - mirroring the runtime
 pattern, so demos/push can run the Go engine programmatically.
 """
 from __future__ import annotations

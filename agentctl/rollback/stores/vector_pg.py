@@ -1,7 +1,7 @@
 """Real pgvector-backed vector StateStore (Workstream 1).
 
-The exact same contract as VectorStoreStub — commit-scoped collections + an idempotent alias swap
-as the restore — but backed by pgvector tables (schema_vector.sql). It reuses the shared ``digest``
+The exact same contract as VectorStoreStub - commit-scoped collections + an idempotent alias swap
+as the restore - but backed by pgvector tables (schema_vector.sql). It reuses the shared ``digest``
 formula verbatim, so the ``state_digest`` sealed into a checkpoint matches this store's
 ``live_digest`` after restore and Vertical C's Phase-3 verification passes unchanged.
 

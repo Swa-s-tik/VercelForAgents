@@ -1,6 +1,6 @@
 """Qdrant-backed vector StateStore (post-1.0: a second managed vector backend).
 
-Proves the `StateStore` protocol is the only seam — a new vector backend drops into
+Proves the `StateStore` protocol is the only seam - a new vector backend drops into
 `rollback.py::_stores()` with no orchestrator change. Qdrant has **native collection aliases**, so
 the alias-swap restore maps onto them exactly: each commit-scoped namespace is a Qdrant collection,
 and a per-project `live__<project>` alias points at the live one. Restore = atomically re-point that

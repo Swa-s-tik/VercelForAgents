@@ -11,7 +11,7 @@ import (
 
 // TestConformance proves the Go data plane is wire-compatible with the Python reference proxy on
 // the frozen Frame envelope. Protobuf deterministic marshaling is per-runtime canonical (Go orders
-// the oneof after the map, Python before it), so the contract is NOT byte-identical full frames —
+// the oneof after the map, Python before it), so the contract is NOT byte-identical full frames -
 // it is (1) a byte-identical frozen header (the header-only forwarding contract) and (2) lossless
 // cross-runtime decode. Both are asserted here against goldens produced by Python.
 func TestConformance(t *testing.T) {
@@ -35,7 +35,7 @@ func TestConformance(t *testing.T) {
 			}
 
 			// (2) Go losslessly decodes Python's wire into the SAME logical frame Go would build
-			// from the spec (compared via Go's own canonical marshal — order-independent).
+			// from the spec (compared via Go's own canonical marshal - order-independent).
 			raw, err := hex.DecodeString(s.GoldenHex)
 			if err != nil {
 				t.Fatalf("bad golden hex: %v", err)
@@ -65,7 +65,7 @@ func TestConformance(t *testing.T) {
 }
 
 // TestControlConformance proves Go decodes the Python control-plane/Health wire into the same
-// logical message (compared via Go's own canonical marshal — order-independent).
+// logical message (compared via Go's own canonical marshal - order-independent).
 func TestControlConformance(t *testing.T) {
 	specs, err := LoadControlSpecs(ControlFixturePath())
 	if err != nil {

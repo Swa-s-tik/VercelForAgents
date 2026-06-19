@@ -1,4 +1,4 @@
-"""Thin FastAPI surface mirroring the eval CLI — the seam the gRPC gateway / CI calls.
+"""Thin FastAPI surface mirroring the eval CLI - the seam the gRPC gateway / CI calls.
 
 Run: uvicorn agentctl.eval.api:app --port 8089
 """

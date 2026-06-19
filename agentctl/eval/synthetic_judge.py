@@ -3,7 +3,7 @@
 Simulates running an eval suite against a new "Preview Agent" by sampling PAIRED preferences
 (WIN/LOSS/TIE, candidate POV) from the agent's TRUE quality vs baseline. This generates
 mathematically realistic sampling variance (Bernoulli/multinomial draws), inserts the records
-directly into the DuckDB OLAP store, and runs the real Wilson-CI + McNemar gate on them — no
+directly into the DuckDB OLAP store, and runs the real Wilson-CI + McNemar gate on them - no
 hardcoded fixtures.
 
 Run:

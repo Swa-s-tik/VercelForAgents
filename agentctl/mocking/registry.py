@@ -4,7 +4,7 @@ Resolves a tool call to a side-effect-free response, in order:
   1. cassette hit (record/replay)
   2. a developer-registered synthetic stub  (@registry.mock_tool("send_email"))
   3. schema-driven autogen fallback (a minimal response satisfying the output schema)
-So a preview agent can NEVER make a real external call — there is always a safe answer.
+So a preview agent can NEVER make a real external call - there is always a safe answer.
 """
 from __future__ import annotations
 

@@ -1,18 +1,18 @@
-# Design — Helm chart / Kubernetes deploy (post-1.0)
+# Design - Helm chart / Kubernetes deploy (post-1.0)
 
 **Status:** done · **Commit:** `feat(deploy): Helm chart …`
 
 ## Why
 
 agentctl shipped a `docker compose` story but no Kubernetes path. The Helm chart
-(`deploy/helm/agentctl`) packages the core 3-tier — Postgres (SoR), the Go data-plane gateway, and
-the Python control plane — so it deploys to any cluster, mirroring the default `docker compose up`
+(`deploy/helm/agentctl`) packages the core 3-tier - Postgres (SoR), the Go data-plane gateway, and
+the Python control plane - so it deploys to any cluster, mirroring the default `docker compose up`
 topology.
 
 ## What it deploys
 
 `helm template` renders 7 objects: a Deployment + Service for **postgres**, **gateway**, and
-**control plane**, plus a **schema-init Job**. (Telemetry/Qdrant stay compose-profile opt-ins — out
+**control plane**, plus a **schema-init Job**. (Telemetry/Qdrant stay compose-profile opt-ins - out
 of this core chart.)
 
 ### Ordering without hooks (the load-bearing detail)
@@ -28,12 +28,12 @@ uses **plain manifests + init-containers**, so everything is created at once and
   `controlplane.routing_tables` exists (a `psql` poll), so their main container only starts after
   the schema is applied.
 
-`helm install --wait` then waits for all Deployments ready + the Job complete — no hooks, no
+`helm install --wait` then waits for all Deployments ready + the Job complete - no hooks, no
 deadlock.
 
 ## Verified end-to-end (kind)
 
-Not just linted — actually deployed and smoke-tested on a real cluster:
+Not just linted - actually deployed and smoke-tested on a real cluster:
 
 ```
 helm lint            -> 0 failed
@@ -53,7 +53,7 @@ auth with `--set requireKey=true --set gateway.requireKey=true`.
 
 ## Boundaries / post-1.0
 
-- `emptyDir` for Postgres (ephemeral) — swap to a PVC/StatefulSet for persistence.
+- `emptyDir` for Postgres (ephemeral) - swap to a PVC/StatefulSet for persistence.
 - Single replica per service; no HPA/PodDisruptionBudget/NetworkPolicy yet.
 - No Ingress (use `kubectl port-forward` or add a Service of type LoadBalancer).
 - A full operator (CRD-driven) is a larger future effort; this chart is the deploy primitive.

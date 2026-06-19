@@ -1,4 +1,4 @@
-"""`agentctl push` — the developer-facing command (typer + rich).
+"""`agentctl push` - the developer-facing command (typer + rich).
 
 Abstracts the whole backend into one command: package the agent at PATH, provision an
 isolated preview through the webhook emulator (Phase 2), stream the SPRT sequential eval live
@@ -27,7 +27,7 @@ from rich.text import Text
 from agentctl.config import DEMO_PROJECT_ID, DUCKDB_PATH
 
 console = Console()
-app = typer.Typer(add_completion=False, help="Vercel for Agents — ship agents with one command.")
+app = typer.Typer(add_completion=False, help="Vercel for Agents - ship agents with one command.")
 
 DEFAULT_GOOD_WIN = 0.62
 REGRESSION_WIN = 0.40
@@ -255,15 +255,15 @@ def _streaming_panel(sp: dict) -> Panel:
     t.add_row("text stream", f"{len(chunks)} TextDelta frames via the Go gateway")
     t.add_row("arrival", f"first @ {chunks[0][0]*1000:.0f}ms · last @ {chunks[-1][0]*1000:.0f}ms · "
                          f"spread {spread*1000:.0f}ms")
-    t.add_row("buffering", "[green]none — chunks streamed incrementally[/]" if incremental
+    t.add_row("buffering", "[green]none - chunks streamed incrementally[/]" if incremental
               else "[red]buffered into one block[/]")
     t.add_row("tool call", f"[cyan]{tool.tool_name}[/] (side_effecting={tool.side_effecting})"
-              if tool else "—")
+              if tool else "-")
     t.add_row("sandbox", f"intercepted → mocked (source={sp['sandbox'].source}); "
                          f"real refunds issued: [green]{sp['real_refunds']}[/]")
     s = sp["side_effect"]
     t.add_row("rollback", f"issue_refund sealed as [yellow]{s.mutation_class}/{s.reversibility}[/] "
-              f"in checkpoint" if s else "—")
+              f"in checkpoint" if s else "-")
     return Panel(t, title="②′ live stream through Go data plane + side-effect",
                  box=box.ROUNDED, border_style="cyan")
 
@@ -363,14 +363,14 @@ def run_push(path: str = ".", simulate_regression: bool = False, samples: int | 
                 f"[bold]Live URL[/]  [link={url}]{url}[/]\n"
                 f"[dim]gRPC[/]      {endpoint or 'n/a'}\n"
                 f"[dim]{wl}[/]\n"
-                f"[dim]{ci} · SPRT log-LR {final['llr']:+.2f} ≥ {final['upper']:.2f} — superior to main[/]",
+                f"[dim]{ci} · SPRT log-LR {final['llr']:+.2f} ≥ {final['upper']:.2f} - superior to main[/]",
                 title="③ verdict", box=box.DOUBLE, border_style="green"))
             rc = 0
         elif decision == "BLOCK":
             console.print(Panel(
                 f"[bold red]⛔  PR BLOCKED[/]  →  preview torn down, main protected\n\n"
                 f"[dim]{wl}[/]\n"
-                f"[dim]{ci} · SPRT log-LR {final['llr']:+.2f} ≤ {final['lower']:.2f} — inferior to main (regression)[/]",
+                f"[dim]{ci} · SPRT log-LR {final['llr']:+.2f} ≤ {final['lower']:.2f} - inferior to main (regression)[/]",
                 title="③ verdict", box=box.DOUBLE, border_style="red"))
             rc = 1
         else:

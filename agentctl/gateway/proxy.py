@@ -3,7 +3,7 @@
 Per session: resolve a sticky canary arm, open a bidi Converse to the primary backend,
 fan inbound client frames to the primary (lossless, backpressure-propagating) and OFFER
 them to shadow backends (lossy, drop-on-full), and stream primary responses back. Shadow
-responses are discarded. The gateway never parses token text — it routes, splits, mirrors.
+responses are discarded. The gateway never parses token text - it routes, splits, mirrors.
 """
 from __future__ import annotations
 
@@ -96,7 +96,7 @@ async def serve(port: int, servicer: GatewayServicer | None = None,
                 options=None) -> tuple[grpc.aio.Server, GatewayServicer]:
     servicer = servicer or GatewayServicer()
     # API-key interceptor: permissive by default (no key passes through), enforces when a key is
-    # present or AGENTCTL_REQUIRE_KEY=1 — so existing tests/demo run keyless and unchanged.
+    # present or AGENTCTL_REQUIRE_KEY=1 - so existing tests/demo run keyless and unchanged.
     from agentctl.auth.grpc_interceptor import ApiKeyServerInterceptor
     server = grpc.aio.server(options=options, interceptors=[ApiKeyServerInterceptor()])
     dpg.add_AgentStreamServicer_to_server(servicer, server)

@@ -1,4 +1,4 @@
-"""RouteCache — STUB for the gateway's view of the routing table (Vertical B).
+"""RouteCache - STUB for the gateway's view of the routing table (Vertical B).
 
 In production this is fed by Postgres (Vertical C) over ControlPlane.WatchRoutes +
 LISTEN/NOTIFY, with copy-on-write snapshots. Here it returns a hardcoded table. The

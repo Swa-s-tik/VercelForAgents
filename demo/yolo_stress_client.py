@@ -154,7 +154,7 @@ async def main(argv=None):
                   f"{rt['fps']:.1f} FPS >= {args.fps * 0.9:.1f} FPS target)")
         else:
             print(f" VERDICT: THROTTLED ✗  (drop {drop_pct:.1f}%, {rt['fps']:.1f} FPS) "
-                  f"— increase --qsize / buffers")
+                  f"- increase --qsize / buffers")
         return 0 if steady else 1
     finally:
         await channel.close()

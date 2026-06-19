@@ -15,7 +15,7 @@ All notable changes to agentctl are documented here. The format is based on
 - **Helm chart** (post-1.0). `deploy/helm/agentctl` deploys the core 3-tier (Postgres + Go gateway +
   Python control plane) to Kubernetes, mirroring the default compose topology. Ordering is enforced
   by init-containers (schema-init Job waits for Postgres; gateway/control plane wait for the schema
-  table) — no hooks, no deadlock. Verified end-to-end on a kind cluster (helm lint/template, install
+  table) - no hooks, no deadlock. Verified end-to-end on a kind cluster (helm lint/template, install
   --wait, pods Running + schema Job Complete, `/healthz` ok, in-cluster CLI). New:
   `deploy/helm/agentctl/*`, `docs/design/HELM_K8S.md`.
 - **Users + role bindings** (post-1.0). `users` and `role_bindings` tables + `api_keys.user_id`
@@ -26,13 +26,13 @@ All notable changes to agentctl are documented here. The format is based on
   over an owner key column). New: `agentctl/auth/users.py`, schema tables, tests.
 - **Control-plane + Health proto conformance** (post-1.0). Extends the golden-wire suite beyond the
   `Frame` to the `ControlPlane` service messages (RouteTable/Backend/ShadowPolicy, ResolveRoute,
-  Watch, TelemetryBatch/Event/Ack) and Health — exercising nested messages, repeated fields, a
+  Watch, TelemetryBatch/Event/Ack) and Health - exercising nested messages, repeated fields, a
   `map<string,double>`, and enums. Cross-runtime decode interop both directions. New:
   `tests/conformance_control.py`, `gateway_core/internal/gateway/conformance_control.go`, fixtures,
   and `TestControlConformance` / `test_control_*`. The whole wire contract is now verified.
 - **Full RBAC enforcement on the Go data plane** (post-1.0). The compiled Go gateway now validates
   `x-api-key` against `controlplane.api_keys` (sha256 lookup, revoked excluded) and enforces tenant
-  (`project_id`) + minimum role, with a 15s TTL cache to keep Postgres off the hot path — upgrading
+  (`project_id`) + minimum role, with a 15s TTL cache to keep Postgres off the hot path - upgrading
   the 1.0 presence-check. Degrades to presence-only without a DSN; permissive unless
   `AGENTCTL_REQUIRE_KEY=1`. New: `gateway_core/internal/gateway/auth.go` (rewritten) + `auth_test.go`
   (CI, no PG), `tests/test_go_gateway_auth.py` (real-gateway e2e, self-skips), and
@@ -45,16 +45,16 @@ All notable changes to agentctl are documented here. The format is based on
   `agentctl/rollback/stores/qdrant_store.py`, `tests/test_qdrant.py` (self-skips without the
   client/server), `docs/design/QDRANT_STATE_STORE.md`.
 - **CI** (`.github/workflows/ci.yml`): GitHub Actions runs the two-runtime gate on every push to
-  `main` and every PR — Python tests against a pgvector Postgres service, plus the Go data-plane
+  `main` and every PR - Python tests against a pgvector Postgres service, plus the Go data-plane
   build and `make conformance` (golden-wire wire-parity check).
 - **`LICENSE`**: the full Apache-2.0 text (the license was already declared in `pyproject.toml`).
 - CI status badge in the README.
 
-## [1.0.0] — 2026-06-18
+## [1.0.0] - 2026-06-18
 
 The production-hardening pass (`docs/ROADMAP_1_0.md`): multi-tenant RBAC, real pgvector/memory state
 stores, a ClickHouse + Grafana telemetry stack, and a cross-runtime proto conformance suite. All
-additions are backward-compatible — the zero-config demo and the prior test suite are unchanged.
+additions are backward-compatible - the zero-config demo and the prior test suite are unchanged.
 This is the first stable release: the frozen `Frame` header, the `StateStore` protocol, and the
 HTTP/gRPC auth contract are now covered by semantic versioning.
 
@@ -70,7 +70,7 @@ HTTP/gRPC auth contract are now covered by semantic versioning.
 
 - **Multi-tenant RBAC via API keys** (Workstream 2). `orgs`/`projects`/`api_keys` tables
   (role-per-key: viewer/developer/admin/owner; sha256-hashed secrets). `project_id` is now resolved
-  from the authenticated principal instead of a hardcoded constant — backward-compatibly: a seeded
+  from the authenticated principal instead of a hardcoded constant - backward-compatibly: a seeded
   bootstrap project/key means `resolve_principal(None)` returns the demo project, so zero-config
   `agentctl push` and all existing tests are unchanged. Enforcement at FastAPI (`Depends`), a gRPC
   interceptor (Python proxy) + wired presence-check (Go gateway, `AGENTCTL_REQUIRE_KEY=1`), and the

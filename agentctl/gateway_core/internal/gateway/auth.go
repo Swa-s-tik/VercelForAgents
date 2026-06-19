@@ -108,7 +108,7 @@ func (a *Authenticator) resolve(ctx context.Context, key string) (*principal, bo
 
 	var pid, role string
 	// effective role = the user's binding on this project (user-bound keys) else the key's own
-	// role — the same COALESCE the Python resolver uses, so both planes agree.
+	// role - the same COALESCE the Python resolver uses, so both planes agree.
 	err := a.db.QueryRowContext(ctx,
 		"SELECT k.project_id::text, COALESCE(rb.role, k.role)::text "+
 			"FROM controlplane.api_keys k "+
@@ -129,7 +129,7 @@ func (a *Authenticator) resolve(ctx context.Context, key string) (*principal, bo
 		a.mu.Unlock()
 		return nil, false, nil
 	default:
-		return nil, false, err // DB blip — caller fails open
+		return nil, false, err // DB blip - caller fails open
 	}
 }
 

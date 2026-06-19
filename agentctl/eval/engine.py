@@ -1,4 +1,4 @@
-"""Sequential evaluation engine (Phase 4) — stop early, save compute.
+"""Sequential evaluation engine (Phase 4) - stop early, save compute.
 
 Fixed-horizon gating (gate.py) waits for all N eval iterations. For expensive agent evals
 (1000+ prompts, each an LLM call), that is wasteful when the verdict is obvious after 60.
@@ -12,7 +12,7 @@ crossed, with controlled error rates valid under continuous monitoring:
     clears the non-inferiority margin. No peeking penalty.
 
 Ties are non-informative for the win/loss comparison and are skipped (decisive-pair analysis),
-consistent with the paired McNemar treatment in gate.py. gate.py is unchanged — this is purely
+consistent with the paired McNemar treatment in gate.py. gate.py is unchanged - this is purely
 additive.
 """
 from __future__ import annotations
@@ -212,7 +212,7 @@ def main(argv=None) -> int:
     for m in methods:
         r = sequential_evaluate(prefs, method=m, nim=0.50)
         print(f"  [{m:7s}] {r.decision:12s} at n_used={r.n_used:<4d} "
-              f"(/{r.n_total})  saved {r.compute_saved_pct:.0f}% compute — {r.reason}")
+              f"(/{r.n_total})  saved {r.compute_saved_pct:.0f}% compute - {r.reason}")
         if r.blocks_merge:
             rc = 1
     return rc

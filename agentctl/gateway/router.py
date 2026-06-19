@@ -1,6 +1,6 @@
 """Per-session sticky weighted canary routing (Vertical B).
 
-Plain dataclasses (not protos) so this — the load-bearing decision logic — is unit-testable
+Plain dataclasses (not protos) so this - the load-bearing decision logic - is unit-testable
 with no network. The canary arm is chosen ONCE per session and pinned: per-message routing
 would corrupt conversational state and break approval round-trips.
 """

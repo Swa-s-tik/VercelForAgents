@@ -1,5 +1,5 @@
 """Qdrant vector StateStore (post-1.0). Skips unless qdrant-client is installed and a Qdrant is
-reachable at QDRANT_URL — so the default suite is unaffected."""
+reachable at QDRANT_URL - so the default suite is unaffected."""
 from __future__ import annotations
 
 from pathlib import Path

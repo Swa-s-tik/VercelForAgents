@@ -1,8 +1,8 @@
 """Isolated preview-agent runtime abstraction (Phase 1).
 
 A clean programmatic layer replacing ad-hoc script launches. One protocol, two backends:
-  * ProcessRuntime — spins the agent up in a child PROCESS (no Docker needed; the default).
-  * DockerRuntime  — spins it up in a container via the docker CLI (no docker SDK needed).
+  * ProcessRuntime - spins the agent up in a child PROCESS (no Docker needed; the default).
+  * DockerRuntime  - spins it up in a container via the docker CLI (no docker SDK needed).
 Both provision -> health-check -> teardown. Health uses the AgentStream.Health gRPC for agents,
 or container/port liveness for opaque images. When a (mock) deployment is registered, the
 control plane provisions an isolated environment through this layer.
@@ -81,7 +81,7 @@ class IsolatedRuntime(Protocol):
 
 
 class ProcessRuntime:
-    """Isolated agent in a child process. Default — works with zero container setup."""
+    """Isolated agent in a child process. Default - works with zero container setup."""
     kind = "process"
 
     def provision(self, spec: RuntimeSpec) -> RuntimeHandle:

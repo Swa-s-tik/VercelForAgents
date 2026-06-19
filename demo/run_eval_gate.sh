@@ -25,7 +25,7 @@ echo
 echo "------------------------------------------------------------"
 echo "inferior PR exit=$rc_inferior (1 = BLOCKED)   superior PR exit=$rc_superior (0 = ALLOWED)"
 if [ "$rc_inferior" -eq 1 ] && [ "$rc_superior" -eq 0 ]; then
-  echo "EVAL GATE WORKS ✔  — inferior PR BLOCKED, superior PR ALLOWED on dynamic data"
+  echo "EVAL GATE WORKS ✔  - inferior PR BLOCKED, superior PR ALLOWED on dynamic data"
   exit 0
 else
   echo "UNEXPECTED gate outcome"

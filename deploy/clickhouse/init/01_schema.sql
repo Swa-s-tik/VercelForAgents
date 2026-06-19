@@ -3,7 +3,7 @@
 -- The env-toggled production backend for heavy OTel logs. Local/preview uses DuckDB
 -- (eval traces) + Postgres.otel_spans (short buffer); at scale, set TELEMETRY_BACKEND=clickhouse
 -- and OTEL spans flow OTLP collector -> ClickHouse here. The raw span shape MIRRORS
--- controlplane.otel_spans (Postgres) 1:1, so promotion needs no app change — only the exporter
+-- controlplane.otel_spans (Postgres) 1:1, so promotion needs no app change - only the exporter
 -- wiring switches (agentctl/telemetry/exporter.py). Aggregates are maintained by incremental
 -- materialized views so dashboards never scan the raw firehose.
 --
@@ -40,7 +40,7 @@ TTL toDate(timestamp) + INTERVAL 90 DAY
 SETTINGS index_granularity = 8192;
 
 -- ============================================================================
--- 2. Token aggregation matrix (per deployment / hour) — AggregatingMergeTree.
+-- 2. Token aggregation matrix (per deployment / hour) - AggregatingMergeTree.
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS agentctl.token_usage_1h
 (
@@ -68,7 +68,7 @@ FROM agentctl.otel_spans
 WHERE name = 'gateway.stream.metrics';
 
 -- ============================================================================
--- 3. Latency quantiles (per deployment / arm / hour) — t-digest aggregate state.
+-- 3. Latency quantiles (per deployment / arm / hour) - t-digest aggregate state.
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS agentctl.latency_1h
 (
@@ -98,7 +98,7 @@ GROUP BY project_id, deployment_id, canary_arm, hour;
 -- read back with: quantilesTDigestMerge(0.5,0.95,0.99)(latency_ms)
 
 -- ============================================================================
--- 4. Canary comparison matrix (per arm / hour) — SummingMergeTree.
+-- 4. Canary comparison matrix (per arm / hour) - SummingMergeTree.
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS agentctl.canary_arm_1h
 (
@@ -128,7 +128,7 @@ FROM agentctl.otel_spans
 WHERE name = 'gateway.stream.metrics';
 
 -- ============================================================================
--- 5. System performance table (throughput per deployment / minute) — SummingMergeTree.
+-- 5. System performance table (throughput per deployment / minute) - SummingMergeTree.
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS agentctl.throughput_1m
 (
@@ -159,5 +159,5 @@ WHERE name = 'gateway.stream.metrics';
 --   OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317   (collector -> ClickHouse)
 --   CLICKHOUSE_DSN=clickhouse://user:pass@ch-host:9000/agentctl
 -- The Postgres otel_spans buffer keeps SPAN_RETENTION_DAYS_PG (default 7); ClickHouse is the
--- long-term warehouse. No schema change is needed to switch — only the exporter wiring.
+-- long-term warehouse. No schema change is needed to switch - only the exporter wiring.
 -- ============================================================================

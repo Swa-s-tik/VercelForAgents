@@ -1,6 +1,6 @@
 {
   "uid": "agentctl-overview",
-  "title": "agentctl — telemetry overview",
+  "title": "agentctl - telemetry overview",
   "tags": ["agentctl"],
   "timezone": "browser",
   "schemaVersion": 39,
@@ -55,7 +55,7 @@
     },
     {
       "id": 4,
-      "title": "Canary arm — frames out / hour",
+      "title": "Canary arm - frames out / hour",
       "type": "timeseries",
       "datasource": { "type": "grafana-clickhouse-datasource", "uid": "agentctl-clickhouse" },
       "gridPos": { "h": 9, "w": 12, "x": 12, "y": 9 },

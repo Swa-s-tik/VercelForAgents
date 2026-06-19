@@ -1,11 +1,11 @@
-"""Phase 10 — the unified end-to-end pipeline, stitching all verticals in one process:
+"""Phase 10 - the unified end-to-end pipeline, stitching all verticals in one process:
 
   git push -> webhook registers + provisions an isolated preview agent (Phase 1/2)
            -> canary 90/10 via Postgres routing, gateway PG route cache picks it up (Phase 3)
            -> real-time multi-modal gRPC traffic (text canary + 1MB binary frames, OTel spans, Phase 5)
            -> promote candidate to 100%
            -> LIVE statistical eval-gating: sequential SPRT BLOCKs the inferior candidate early (Phase 4)
-           -> controlled stateful rollback to the stable commit (Phase 8) — state realigned, audited
+           -> controlled stateful rollback to the stable commit (Phase 8) - state realigned, audited
            -> validate routing-cache integrity: gateway now serves stable, zero dropped streams.
 
 Everything runs against the real Postgres + real gRPC over localhost.
@@ -156,7 +156,7 @@ async def main() -> int:
         print(f"  text canary split over 30 sessions: {dict(dist)}")
         mm_bytes = await binary_burst(stub, 12, _MB)
         print(f"  multi-modal: streamed {mm_bytes} x 1MB binary frames through the gateway "
-              f"({mm_bytes} MB) — proxied OK")
+              f"({mm_bytes} MB) - proxied OK")
 
         # ---- STEP 3: promote candidate to 100% (it now serves + 'writes' state) ----
         step(3, "promote candidate -> 100% live")
@@ -177,7 +177,7 @@ async def main() -> int:
         run_id, fixed = simulate_and_gate(store, p_win=0.38, p_tie=0.08, n=240, suite="correctness",
                                           commit=CAND_SHA, baseline=STABLE_SHA, pr=900, seed=7, cfg=GateConfig())
         print(f"  SPRT: {seq.decision} after {seq.n_used}/{seq.n_total} samples "
-              f"({seq.compute_saved_pct:.0f}% compute saved) — {seq.reason}")
+              f"({seq.compute_saved_pct:.0f}% compute saved) - {seq.reason}")
         print(f"  DuckDB fixed-horizon gate (n={fixed.n}): {fixed.decision} "
               f"[Wilson {fixed.wilson_low:.3f},{fixed.wilson_high:.3f}]")
         gate_blocked = seq.decision == "BLOCK" and fixed.decision == "BLOCK"
@@ -208,7 +208,7 @@ async def main() -> int:
         ok = (gate_blocked and res["status"] == "compensating" and reloaded and arm_final == "vMain"
               and VectorStoreStub().live_namespace() == "ns-stable" and cache.reloads >= 1 and spans > 0)
         print("\n" + "═" * 64)
-        print(" PIPELINE: " + ("PASS ✔  — push→preview→canary→multimodal→gate(BLOCK)→rollback→routing OK"
+        print(" PIPELINE: " + ("PASS ✔  - push→preview→canary→multimodal→gate(BLOCK)→rollback→routing OK"
                                if ok else "FAIL"))
         print("═" * 64)
         return 0 if ok else 1

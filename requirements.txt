@@ -1,4 +1,4 @@
-# agentctl — locked Python dependencies (control plane + CLI).
+# agentctl - locked Python dependencies (control plane + CLI).
 # Pinned to a known-good set; regenerate with `pip install -e . && pip freeze`.
 grpcio==1.81.1
 grpcio-tools==1.81.1

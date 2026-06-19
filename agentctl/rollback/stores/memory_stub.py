@@ -1,7 +1,7 @@
-"""Conversational memory graph — functional mock of an event-sourced log (Phase 8).
+"""Conversational memory graph - functional mock of an event-sourced log (Phase 8).
 
 The graph is an append-only transaction log; HEAD = (snapshot_seq, log_offset). A rollback
-REWINDS HEAD to a target offset by moving the pointer — events the rolled-past deployment
+REWINDS HEAD to a target offset by moving the pointer - events the rolled-past deployment
 wrote remain in the log (tombstoned past HEAD), so a later roll-forward can replay them.
 Nothing is destroyed. `live_digest` attests the current HEAD.
 """
@@ -48,7 +48,7 @@ class MemoryGraphStub:
         return digest(f"{coordinate['snapshot_seq']}:{coordinate['log_offset']}")
 
     def restore(self, coordinate: dict) -> str:
-        # rewind HEAD (re-materialize) — the log itself is left intact.
+        # rewind HEAD (re-materialize) - the log itself is left intact.
         self.set_head(coordinate["snapshot_seq"], coordinate["log_offset"])
         return self.live_digest()
 

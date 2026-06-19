@@ -7,13 +7,13 @@ export GRPC_VERBOSITY=NONE
 DB=.agentctl/run_all.duckdb
 
 echo "############################################################"
-echo "#                  agentctl — full demo                    #"
+echo "#                  agentctl - full demo                    #"
 echo "############################################################"
 
 echo; echo "===== 0. generate eval fixtures ====="
 python demo/make_fixtures.py
 
-echo; echo "===== 1. Vertical A — eval-gating ====="
+echo; echo "===== 1. Vertical A - eval-gating ====="
 rm -f "$DB"
 echo "--- good candidate, PR 100 (expect ALLOW) ---"
 agentctl eval ingest --run demo/fixtures/candidate.jsonl --baseline demo/fixtures/main.jsonl \
@@ -24,22 +24,22 @@ agentctl eval ingest --run demo/fixtures/candidate_regression.jsonl --baseline d
   --commit regr5678 --pr 101 --db "$DB" >/dev/null
 if agentctl gate --pr 101 --db "$DB"; then echo ">> PR 101 ALLOWED"; else echo ">> PR 101 BLOCKED the merge (exit 1)"; fi
 
-echo; echo "===== 2. Vertical C — stateful rollback ====="
+echo; echo "===== 2. Vertical C - stateful rollback ====="
 agentctl rollback schema
 agentctl rollback seed
 agentctl rollback run aaaa1111aaaa
 agentctl rollback audit
 
-echo; echo "===== 3. Vertical B — gRPC gateway (canary / shadow / interrupt) ====="
+echo; echo "===== 3. Vertical B - gRPC gateway (canary / shadow / interrupt) ====="
 python demo/gateway_demo.py
 
-echo; echo "===== 4. Vertical B — WebSocket edge interrupt ====="
+echo; echo "===== 4. Vertical B - WebSocket edge interrupt ====="
 python demo/ws_demo.py
 
-echo; echo "===== 5. Phase 2 — multi-modal gRPC stress test ====="
+echo; echo "===== 5. Phase 2 - multi-modal gRPC stress test ====="
 python demo/yolo_stress_client.py
 
-echo; echo "===== 6. Phase 2 — dynamic eval-gate (synthetic judge -> DuckDB) ====="
+echo; echo "===== 6. Phase 2 - dynamic eval-gate (synthetic judge -> DuckDB) ====="
 ./demo/run_eval_gate.sh
 
 echo; echo "############################################################"

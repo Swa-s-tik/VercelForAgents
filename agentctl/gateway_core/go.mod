@@ -1,4 +1,4 @@
-// High-performance data-plane gateway (scaffold) — the eventual lift-and-shift target for
+// High-performance data-plane gateway (scaffold) - the eventual lift-and-shift target for
 // the Python grpc.aio proxy, behind the SAME frozen proto contract (../../proto).
 module github.com/agentctl/gateway_core
 

@@ -1,4 +1,4 @@
-# Design — Golden-wire proto conformance (Workstream 4)
+# Design - Golden-wire proto conformance (Workstream 4)
 
 **Status:** done · **Commit:** `feat(conformance): …`
 
@@ -10,7 +10,7 @@ data plane (`gateway_core`) agree on the wire. Nothing tested it. This workstrea
 
 ## The finding (and why the naive contract is wrong)
 
-The first cut asserted **byte-identical full-frame** serialization (`Python.SerializeToString(deterministic=True)` == `Go proto.Marshal{Deterministic:true}`). It **failed** — and correctly so:
+The first cut asserted **byte-identical full-frame** serialization (`Python.SerializeToString(deterministic=True)` == `Go proto.Marshal{Deterministic:true}`). It **failed** - and correctly so:
 
 > Protobuf "deterministic" marshaling is **per-runtime canonical, not cross-runtime canonical.**
 
@@ -28,11 +28,11 @@ drifted. Asserting byte-identity would have been a test that protobuf never prom
 
 agentctl's gateway forwards a frame by parsing only its **header** and passing the original payload
 bytes through untouched (header-only forwarding, PRD §4). It never re-encodes a forwarded frame. So
-the property that must hold is not "both runtimes re-encode identically" — it's:
+the property that must hold is not "both runtimes re-encode identically" - it's:
 
 1. **The frozen header (fields 1–4: `session_id, stream_id, seq, direction`) is byte-identical
    across runtimes.** Header fields always serialize first, in ascending order, with no oneof/map to
-   reorder — so this *is* guaranteed, and it's exactly what the cheap header-parse forwarding relies
+   reorder - so this *is* guaranteed, and it's exactly what the cheap header-parse forwarding relies
    on. We marshal a header-only `Frame` on each side and assert equal bytes (`header_hex`).
 2. **Lossless cross-runtime decode (both directions).** Each runtime decodes the other's wire into
    the same logical frame:
@@ -41,12 +41,12 @@ the property that must hold is not "both runtimes re-encode identically" — it'
    - Python decodes Go's wire (`conformance_go_wire.json`) and re-marshals (Python-canonical) to the
      same bytes Python builds from the spec.
 
-Together these guarantee the two planes are wire-**interoperable** — which is the real requirement —
+Together these guarantee the two planes are wire-**interoperable** - which is the real requirement -
 and that the frozen-header forwarding fast path is byte-exact.
 
 ## Mechanism
 
-- **Single source of truth:** `tests/fixtures/conformance_frames.json` — language-neutral frame
+- **Single source of truth:** `tests/fixtures/conformance_frames.json` - language-neutral frame
   specs (frozen header + every oneof payload + enums + bytes + a multi-key `attributes`
   map-ordering stress case) plus committed `golden_hex` (Python wire) and `header_hex`.
 - **Builders mirror each other:** `tests/conformance_frames.py::build_frame` and
@@ -73,7 +73,7 @@ canonical order), the relevant assertion goes red.
 ## Control-plane + Health messages (post-1.0)
 
 The suite now also covers the `ControlPlane` service messages (`RouteTable`/`Backend`/`ShadowPolicy`,
-`ResolveRouteRequest`, `WatchRequest`, `TelemetryBatch`/`Event`/`Ack`) and the `Health` messages —
+`ResolveRouteRequest`, `WatchRequest`, `TelemetryBatch`/`Event`/`Ack`) and the `Health` messages -
 exercising nested messages, repeated fields, a `map<string,double>` (a new wire shape vs the
 `Frame`'s string map), and enums. There's no frozen header here, so the contract is **cross-runtime
 decode interop both directions** (Go decodes the Python golden; Python decodes Go's wire). Builders:

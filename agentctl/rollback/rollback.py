@@ -1,4 +1,4 @@
-"""The 1-click rollback orchestrator — Phases 0..4 (Vertical C).
+"""The 1-click rollback orchestrator - Phases 0..4 (Vertical C).
 
 Guarantee offered (honestly): the live code becomes exactly the target commit and every
 REVERSIBLE state pointer is realigned to that commit's snapshot; every non-reversible
@@ -6,7 +6,7 @@ pointer is enumerated in ``rollbacks.unrollbackable`` and the rollback reports
 ``compensating`` (partial) rather than a fake ``completed``.
 
 Only Phase 1 (the routing flip) is a hard ACID transaction. State realignment (Phase 2)
-is per-pointer idempotent and crash-resumable — NOT a distributed transaction.
+is per-pointer idempotent and crash-resumable - NOT a distributed transaction.
 """
 from __future__ import annotations
 

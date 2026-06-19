@@ -31,7 +31,7 @@ def seal_checkpoint(conn: psycopg.Connection, deployment_id: int,
 
 def load_manifest(conn: psycopg.Connection, deployment_id: int) -> Manifest | None:
     """Load a SEALED checkpoint's manifest. Returns None if absent or not sealed
-    (Phase 0 rejects unsealed checkpoints — we cannot guarantee restore)."""
+    (Phase 0 rejects unsealed checkpoints - we cannot guarantee restore)."""
     with conn.cursor() as cur:
         cur.execute(
             "SELECT id, git_commit_sha, status FROM controlplane.checkpoints WHERE deployment_id=%s",

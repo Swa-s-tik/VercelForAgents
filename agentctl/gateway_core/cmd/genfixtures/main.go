@@ -4,7 +4,7 @@
 //
 // It checks, per frame: (1) the frozen header marshals byte-identically to Python's header_hex,
 // (2) Go decodes Python's golden into the same logical frame Go builds from the spec. Exits
-// non-zero on any drift. (Full-frame bytes intentionally differ from Python — protobuf
+// non-zero on any drift. (Full-frame bytes intentionally differ from Python - protobuf
 // deterministic marshaling is per-runtime canonical, not cross-runtime.)
 package main
 

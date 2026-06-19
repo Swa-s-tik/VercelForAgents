@@ -1,7 +1,7 @@
-# gateway_core — Go data-plane gateway (scaffold)
+# gateway_core - Go data-plane gateway (scaffold)
 
 The high-performance native data plane that will eventually **lift-and-shift the Python
-`grpc.aio` proxy** (`agentctl/gateway/`) — behind the *same frozen Protobuf contract*
+`grpc.aio` proxy** (`agentctl/gateway/`) - behind the *same frozen Protobuf contract*
 (`../../proto`). Agents, the WebSocket edge, and the control plane are unchanged; only the
 hot-path proxy is reimplemented.
 
@@ -12,7 +12,7 @@ hot-path proxy is reimplemented.
 ## Layout
 ```
 cmd/gateway/main.go              server bootstrap (:50050, 64MB msg limits)
-internal/gateway/router.go       sticky weighted canary — mirrors router.py (sha1 hash ^ version)
+internal/gateway/router.go       sticky weighted canary - mirrors router.py (sha1 hash ^ version)
 internal/gateway/proxy.go        bidi streaming reverse proxy: fan-out, shadow, canary_arm tag
 gen/acpv1/                        generated stubs (make proto)  [gitignored]
 Makefile                         proto codegen + go build
@@ -37,7 +37,7 @@ make run        # listen on :50050
 ## The header-only fast-path optimization (next step)
 grpc-go deserializes each `Frame` by default. For max throughput on 1MB vision frames, register
 a custom `encoding.Codec` that decodes only the routing header and forwards the opaque tail as
-`[]byte` (zero-copy proxy) — the envelope's low field numbers (1-4) make this a cheap partial
+`[]byte` (zero-copy proxy) - the envelope's low field numbers (1-4) make this a cheap partial
 parse. A golden-wire conformance suite (same bytes in/out as the Python impl) guards parity.
 
 ## Routing source

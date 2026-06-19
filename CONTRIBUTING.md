@@ -38,13 +38,13 @@ cd agentctl/gateway_core && make build && make conformance
 1. **The proto is the single source of truth.** `proto/*.proto` defines the wire. The header fields
    1–4 (`session_id, stream_id, seq, direction`) are **frozen forever**. If you change a message,
    regenerate the goldens (`python tests/conformance_frames.py`) and run the conformance suite on
-   both runtimes — a drift there is a breaking change.
+   both runtimes - a drift there is a breaking change.
 2. **Don't weaken the honesty guard.** The `side_effects_are_irreversible` CHECK and the per-pointer
    idempotent rollback are load-bearing. A rollback that touched irreversible state reports
-   `compensating` and enumerates what it couldn't undo — it never fakes `completed`.
+   `compensating` and enumerates what it couldn't undo - it never fakes `completed`.
 3. **Keep the zero-config path working.** New capability is opt-in (an env flag or a compose
    profile). A plain `docker compose up` + `agentctl push` must work with no API key, no pgvector,
-   no ClickHouse. The existing test suite is the regression guard — keep it green.
+   no ClickHouse. The existing test suite is the regression guard - keep it green.
 4. **Backends drop in behind their seam.** New state stores implement the `StateStore` protocol and
    register in `rollback.py::_stores()`; new telemetry backends branch in
    `telemetry/exporter.py::_make_exporter`. Don't thread backend-specifics through the orchestrator.

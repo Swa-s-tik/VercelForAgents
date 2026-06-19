@@ -4,7 +4,7 @@ Replaces the static RouteCache: the live routing table is loaded from Postgres a
 background worker holds a dedicated `LISTEN routing_changed` connection. When a deployment
 status or canary target shifts (Vertical C's flip transaction fires `pg_notify` inside the
 commit), the worker reloads and atomically swaps the in-memory snapshot. Because the gateway
-pins a session's arm at open time (sticky), a swap only affects NEW sessions — active gRPC
+pins a session's arm at open time (sticky), a swap only affects NEW sessions - active gRPC
 streams are never dropped.
 
 Implements the same `snapshot()` seam as RouteCache, so Router/GatewayServicer are unchanged.

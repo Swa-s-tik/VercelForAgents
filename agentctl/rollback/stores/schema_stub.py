@@ -1,4 +1,4 @@
-"""Relational schema — functional mock with a migration history (Phase 8).
+"""Relational schema - functional mock with a migration history (Phase 8).
 
 The genuinely-hard case. A down-migration that drops a column DESTROYS data, so this store
 REFUSES to auto-run a data-lossy down-migration and signals a forward-fix is required.

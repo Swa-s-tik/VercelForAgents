@@ -6,7 +6,7 @@ import (
 	"sort"
 )
 
-// Backend mirrors agentctl/gateway/router.py:Backend. Plain struct — the routing decision
+// Backend mirrors agentctl/gateway/router.py:Backend. Plain struct - the routing decision
 // is the load-bearing logic and must match the Python implementation byte-for-byte in behavior.
 type Backend struct {
 	ID         string

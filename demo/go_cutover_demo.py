@@ -2,7 +2,7 @@
 
 The Python control plane seeds routing (B live), launches the Go gateway binary (which LISTENs
 on routing_changed), sends a client session through it, then flips routing -> A in Postgres.
-The live Go gateway must pick up the flip and re-route — proving the cutover.
+The live Go gateway must pick up the flip and re-route - proving the cutover.
 """
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ async def one_session(stub, sid):
 
 async def main() -> int:
     if not binary_available():
-        print("Go gateway binary not built — run: cd agentctl/gateway_core && make build")
+        print("Go gateway binary not built - run: cd agentctl/gateway_core && make build")
         return 1
     conn = connect()
     apply_schema(conn, str(Path(rb.__file__).with_name("schema_postgres.sql")))

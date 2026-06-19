@@ -1,4 +1,4 @@
-"""Mock customer-support agent (Milestone 2) — the community-relatable example backend.
+"""Mock customer-support agent (Milestone 2) - the community-relatable example backend.
 
 Streams a reply token-by-token as chunked TextDelta frames (simulating LLM token streaming),
 then emits an `issue_refund` ToolCall frame (side-effecting). Exercises the Frame envelope

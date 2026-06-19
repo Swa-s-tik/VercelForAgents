@@ -1,4 +1,4 @@
-"""Mock customer-support agent — streams a reply token-by-token and issues a refund.
+"""Mock customer-support agent - streams a reply token-by-token and issues a refund.
 
 The platform hosts the streaming version (agentctl/agents/support_agent.py) in the isolated
 preview during `agentctl push`; this is the packaged source artifact. Run it to see a turn:

@@ -1,4 +1,4 @@
-"""EvalStore — the local DuckDB OLAP store for eval traces (Vertical A).
+"""EvalStore - the local DuckDB OLAP store for eval traces (Vertical A).
 
 This is the storage seam. ``record_samples`` / ``fetch_aggregate`` are the only two
 methods the gate path depends on, so swapping DuckDB for ClickHouse later touches

@@ -1,6 +1,6 @@
 """Native ClickHouse OTel span exporter (Workstream 3).
 
-Writes spans straight into ``agentctl.otel_spans`` over the ClickHouse HTTP interface — no OTLP
+Writes spans straight into ``agentctl.otel_spans`` over the ClickHouse HTTP interface - no OTLP
 collector required, so the telemetry stack is self-contained. Mirrors the Postgres exporter's
 discipline (never crashes the caller; returns FAILURE on error). Maps the OTel span onto the
 ClickHouse schema (storage/schema_clickhouse.sql): BYTEA ids -> hex strings, start/end -> a single

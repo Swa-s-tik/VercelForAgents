@@ -27,7 +27,7 @@ def test_process_runtime_lifecycle():
 
 def test_docker_runtime_lifecycle():
     if not docker_available():
-        print("  docker unavailable — skipping DockerRuntime test")
+        print("  docker unavailable - skipping DockerRuntime test")
         return
     rt = DockerRuntime()
     handle = rt.provision(RuntimeSpec(name="smoke", image="busybox", cmd=["sleep", "60"]))

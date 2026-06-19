@@ -1,4 +1,4 @@
-# support_agent — a streaming, tool-calling customer support agent
+# support_agent - a streaming, tool-calling customer support agent
 name: support-agent
 model: claude-opus-4-8
 task: customer-support
