@@ -1,0 +1,68 @@
+name: "agentctl eval-gate"
+description: >
+  Run agentctl's statistical eval-gate (Wilson interval + SPRT) on a PR's agent change and post the
+  verdict as a commit status (so it gates merge) plus a PR comment (the per-suite Wilson CIs). This
+  is the reusable action for OTHER repos; it installs agentctl from PyPI.
+branding:
+  icon: check-circle
+  color: green
+
+inputs:
+  candidate:
+    description: "Candidate eval JSONL (this PR's agent vs main)"
+    required: true
+  baseline:
+    description: "Baseline eval JSONL (main)"
+    required: true
+  pr:
+    description: "PR number (for the comment); defaults to the triggering PR"
+    required: false
+    default: ${{ github.event.pull_request.number }}
+  nim:
+    description: "Non-inferiority margin; 0.52 turns it into a superiority gate"
+    required: false
+    default: "0.50"
+  n-min:
+    description: "Minimum samples before the gate acts"
+    required: false
+    default: "30"
+  strict:
+    description: "Block (fail) on INCONCLUSIVE suites"
+    required: false
+    default: "false"
+  agentctl-version:
+    description: "agentctl version spec to install (e.g. '==1.0.0'); empty = latest"
+    required: false
+    default: ""
+  token:
+    description: "GitHub token with statuses:write (and pull-requests:write for the comment)"
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    - shell: bash
+      run: pip install "agentctl${{ inputs.agentctl-version }}"
+    - shell: bash
+      env:
+        AGENTCTL_DUCKDB: ${{ runner.temp }}/agentctl-gate.duckdb
+      run: |
+        agentctl eval ingest \
+          --run "${{ inputs.candidate }}" \
+          --baseline "${{ inputs.baseline }}" \
+          --pr "${{ inputs.pr }}" --db "$AGENTCTL_DUCKDB"
+    - shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+        AGENTCTL_GATE_SHA: ${{ github.event.pull_request.head.sha }}
+        AGENTCTL_GATE_PR: ${{ inputs.pr }}
+        AGENTCTL_GATE_TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        agentctl gate --pr "${{ inputs.pr }}" \
+          --nim "${{ inputs.nim }}" --n-min "${{ inputs.n-min }}" \
+          ${{ inputs.strict == 'true' && '--strict' || '' }} \
+          --db "${{ runner.temp }}/agentctl-gate.duckdb" --github

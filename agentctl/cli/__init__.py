@@ -16,6 +16,7 @@ Handlers lazy-import their vertical so an unrelated subcommand never pays for
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 
@@ -62,6 +63,45 @@ def _cmd_eval_ingest(args) -> int:
     return 0
 
 
+class _Verdict:
+    """Minimal verdict shape for the GitHub comment builder (a single-run gate has no PR verdict)."""
+    def __init__(self, decision: str, reason: str):
+        self.decision, self.reason = decision, reason
+
+
+def _maybe_post_github(args, decision: str, reason: str, exit_code: int, decisions: dict) -> None:
+    """--dry-run prints the would-post status + comment; --github posts them via GitHub Actions env.
+    Off-CI (no GITHUB_* env) --github is a no-op with a clear note, so it's safe to always pass in CI."""
+    if not (getattr(args, "github", False) or getattr(args, "dry_run", False)):
+        return
+    from agentctl.gitops import github_gate as gh
+
+    target = gh.from_github_env()
+    sha = target.sha if target else ""
+    payload = gh.status_payload(decision, reason, exit_code, target_url=getattr(args, "target_url", "") or "")
+    body = gh.comment_markdown(_Verdict(decision, reason), decisions, sha=sha, margin=args.nim)
+
+    if getattr(args, "dry_run", False):
+        print("\n--- [dry-run] commit status (POST /repos/{repo}/statuses/{sha}) ---")
+        print(json.dumps(payload, indent=2))
+        print("\n--- [dry-run] PR comment ---\n" + body)
+        return
+    if target is None:
+        print("--github: no GitHub env (need GITHUB_REPOSITORY + token + SHA); skipping post",
+              file=sys.stderr)
+        return
+    # The gate VERDICT is the source of truth for pass/fail (already in the return code); a GitHub API
+    # failure (a fork's read-only token, a permissions gap) must not crash the gate or mask its result.
+    try:
+        code = gh.post_commit_status(target, payload)
+        print(f"posted commit status [{payload['state']}] -> {target.repo}@{target.sha[:12]} (HTTP {code})")
+        if target.pr is not None:
+            c = gh.post_pr_comment(target, body)
+            print(f"posted PR comment -> #{target.pr} (HTTP {c})")
+    except Exception as e:  # noqa: BLE001 - posting is best-effort; the verdict still gates
+        print(f"--github: could not post to GitHub ({e}); the gate verdict still stands", file=sys.stderr)
+
+
 def _cmd_gate(args) -> int:
     from agentctl.eval.gate import GateConfig
     from agentctl.eval.runner import format_decision, gate_pr, gate_run
@@ -77,6 +117,7 @@ def _cmd_gate(args) -> int:
             print(format_decision(suite, d) + "\n")
         print(f"PR #{args.pr} VERDICT: {verdict.decision}  - {verdict.reason}")
         print(f"  BH-significant per suite: {verdict.bh_significant}")
+        _maybe_post_github(args, verdict.decision, verdict.reason, verdict.exit_code, decisions)
         return verdict.exit_code
 
     if args.run_id is not None:
@@ -86,7 +127,9 @@ def _cmd_gate(args) -> int:
             return 2
         d = gate_run(store, args.run_id, cfg)
         print(format_decision(meta["suite_name"], d))
-        return 1 if d.decision == "BLOCK" else 0
+        exit_code = 1 if d.decision == "BLOCK" else 0
+        _maybe_post_github(args, d.decision, d.reason, exit_code, {meta["suite_name"]: d})
+        return exit_code
 
     print("specify --run-id <id> or --pr <n>", file=sys.stderr)
     return 2
@@ -110,6 +153,13 @@ def _add_eval_parsers(sub) -> None:
     g.add_argument("--nim", type=float, default=0.50, help="non-inferiority margin (0.52 = superiority)")
     g.add_argument("--n-min", type=int, default=100, dest="n_min")
     g.add_argument("--strict", action="store_true", help="block on INCONCLUSIVE suites")
+    g.add_argument("--github", action="store_true",
+                   help="post the verdict as a GitHub commit status (+ PR comment) using Actions env")
+    g.add_argument("--dry-run", action="store_true", dest="dry_run",
+                   help="print the would-post status + comment instead of calling the GitHub API")
+    g.add_argument("--target-url", dest="target_url",
+                   default=os.environ.get("AGENTCTL_GATE_TARGET_URL", ""),
+                   help="URL the status check links to (e.g. the CI run)")
     g.add_argument("--db", default=DEFAULT_DB)
     g.set_defaults(func=_cmd_gate)
 

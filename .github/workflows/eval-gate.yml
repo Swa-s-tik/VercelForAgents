@@ -1,0 +1,47 @@
+# Dogfood: run the agentctl eval-gate on this repo's own PRs and post the verdict as a commit status
+# + comment. This is the "open a PR -> the agent is quality-gated automatically" loop, real (not the
+# webhook emulator). It installs agentctl from source (the package isn't on PyPI yet) and gates the
+# bundled demo eval suites, so every PR gets a live ALLOW/BLOCK check.
+#
+# Note: GITHUB_TOKEN is read-only for PRs from forks, so the post is skipped there (the gate still
+# runs and sets the job's exit status). Same-repo branches get the full status + comment.
+name: eval-gate
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  statuses: write
+  pull-requests: write
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install agentctl
+        run: pip install -e .
+      - name: Ingest eval suites (candidate vs main)
+        env:
+          AGENTCTL_DUCKDB: ${{ runner.temp }}/eval-gate.duckdb
+        run: |
+          agentctl eval ingest \
+            --run demo/fixtures/candidate.jsonl \
+            --baseline demo/fixtures/main.jsonl \
+            --pr "${{ github.event.pull_request.number }}" \
+            --db "$AGENTCTL_DUCKDB"
+      - name: Eval-gate + post to PR
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          AGENTCTL_GATE_SHA: ${{ github.event.pull_request.head.sha }}
+          AGENTCTL_GATE_PR: ${{ github.event.pull_request.number }}
+          AGENTCTL_GATE_TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          agentctl gate \
+            --pr "${{ github.event.pull_request.number }}" \
+            --nim 0.50 --n-min 30 \
+            --db "${{ runner.temp }}/eval-gate.duckdb" --github
