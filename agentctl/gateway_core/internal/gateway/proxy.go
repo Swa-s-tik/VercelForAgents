@@ -74,7 +74,7 @@ func (s *Server) Converse(stream acpv1.AgentStream_ConverseServer) error {
 
 	// shadow lanes: each is a BOUNDED, drop-on-full pipe drained by its own goroutine (see
 	// shadow.go). Lossy by design, so a slow/stuck shadow backend can never flow-control the
-	// primary — offer() in the pump below never blocks. Shadow responses are discarded.
+	// primary - offer() in the pump below never blocks. Shadow responses are discarded.
 	var shadowPipes []*shadowPipe[*acpv1.Frame]
 	for _, sb := range shadows {
 		if sc, err := s.client(sb.Endpoint); err == nil {

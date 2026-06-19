@@ -221,10 +221,10 @@ def evaluate_gate(wins: int, losses: int, ties: int, cfg: GateConfig = GateConfi
 
 
 # --------------------------------------------------------------------------- #
-# Multi-suite aggregation with Benjamini–Hochberg FDR control
+# Multi-suite aggregation with Benjamini-Hochberg FDR control
 # --------------------------------------------------------------------------- #
 def bh_reject(pvalues: list[float], q: float = 0.05) -> list[bool]:
-    """Benjamini–Hochberg step-up. Returns a boolean per input p-value (in input order):
+    """Benjamini-Hochberg step-up. Returns a boolean per input p-value (in input order):
     True means "reject H0 at FDR <= q". Used to control false regressions across the
     many eval suites a single PR runs (correctness, safety, tone, latency, ...).
     """

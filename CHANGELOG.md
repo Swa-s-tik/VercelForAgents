@@ -7,6 +7,15 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Community scaffolding** (post-1.0). `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1),
+  `GOVERNANCE.md` (roles, decision process, release policy), and GitHub issue/PR templates
+  (`.github/ISSUE_TEMPLATE/*`, `.github/PULL_REQUEST_TEMPLATE.md`).
+
+### Fixed
+- **Punctuation hygiene**: purged all non-ASCII dashes (em-dash, en-dash, horizontal bar) project-wide
+  to plain `-`, including the dashes that crept back into the Go data-plane files.
+- **Landing page**: the status matrix listed header-only zero-copy forwarding as PLANNED; it shipped
+  (Go, opt-in) in the zero-copy PR. `index.html` now marks it REAL with the Python-proxy caveat.
 - **Dashboard auto-refresh** (post-1.0). The dashboard now polls a fragment endpoint
   (`GET /api/dashboard`) via htmx every few seconds, so the live-traffic, eval-verdict, and routing
   panels update without a manual reload - the "Live traffic" panel is actually live.
@@ -150,7 +159,7 @@ HTTP/gRPC auth contract are now covered by semantic versioning.
 ### Added
 - **Golden-wire proto conformance suite** (Workstream 4). Cross-runtime verification that the Python
   reference proxy and the Go data plane are wire-compatible on the frozen `Frame` envelope:
-  byte-identical frozen header (fields 1–4) + lossless cross-runtime decode in both directions.
+  byte-identical frozen header (fields 1-4) + lossless cross-runtime decode in both directions.
   Surfaced and documented that protobuf `deterministic` marshaling is per-runtime, not cross-runtime
   canonical. New: `tests/fixtures/conformance_frames.json`, `tests/conformance_frames.py`,
   `tests/test_conformance.py`, `gateway_core/internal/gateway/conformance{,_test}.go`,

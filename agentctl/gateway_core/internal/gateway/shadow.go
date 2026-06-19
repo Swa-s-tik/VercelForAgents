@@ -12,8 +12,8 @@ const shadowBuffer = 256
 //
 // This is the asymmetry the design depends on: the PRIMARY path is lossless (a slow client/backend
 // propagates backpressure and slows only its own stream), while a SHADOW is LOSSY BY DESIGN so a
-// slow or stuck shadow backend can never flow-control the primary. offer() never blocks — on a full
-// buffer it drops and counts — and a single dedicated goroutine is the only place that may block on
+// slow or stuck shadow backend can never flow-control the primary. offer() never blocks - on a full
+// buffer it drops and counts - and a single dedicated goroutine is the only place that may block on
 // the (potentially slow) backend Send. This matches agentctl/gateway/shadow.py (ShadowChannel).
 type shadowPipe[T any] struct {
 	ch      chan T
@@ -38,7 +38,7 @@ func newShadowPipe[T any](send func(T) error) *shadowPipe[T] {
 }
 
 // offer enqueues a frame WITHOUT EVER BLOCKING the caller (the primary pump goroutine). When the
-// buffer is full it drops the frame and increments the dropped counter — the whole point: a slow
+// buffer is full it drops the frame and increments the dropped counter - the whole point: a slow
 // shadow sheds its own load and the primary stream is never throttled.
 func (p *shadowPipe[T]) offer(f T) {
 	select {

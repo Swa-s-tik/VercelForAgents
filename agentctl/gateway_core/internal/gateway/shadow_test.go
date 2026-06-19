@@ -28,7 +28,7 @@ func TestShadowPipeDropsWhenStalled(t *testing.T) {
 	select {
 	case <-done:
 	case <-time.After(2 * time.Second):
-		t.Fatal("offer() blocked on a stalled shadow — a slow shadow can throttle the primary")
+		t.Fatal("offer() blocked on a stalled shadow - a slow shadow can throttle the primary")
 	}
 
 	if p.Dropped() == 0 {

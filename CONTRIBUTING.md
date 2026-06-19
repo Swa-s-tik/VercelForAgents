@@ -36,7 +36,7 @@ cd agentctl/gateway_core && make build && make conformance
 ## Rules that keep the system honest
 
 1. **The proto is the single source of truth.** `proto/*.proto` defines the wire. The header fields
-   1–4 (`session_id, stream_id, seq, direction`) are **frozen forever**. If you change a message,
+   1-4 (`session_id, stream_id, seq, direction`) are **frozen forever**. If you change a message,
    regenerate the goldens (`python tests/conformance_frames.py`) and run the conformance suite on
    both runtimes - a drift there is a breaking change.
 2. **Don't weaken the honesty guard.** The `side_effects_are_irreversible` CHECK and the per-pointer

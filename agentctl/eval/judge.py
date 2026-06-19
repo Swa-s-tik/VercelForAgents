@@ -43,7 +43,7 @@ class LLMJudge:
       * position-bias cancelled by double-judging with the two arms swapped (a judge that always
         prefers "A" nets out to TIE, so a real preference must survive the swap);
       * low self-reported confidence folds to TIE (don't let a coin-flip count as a decisive sample);
-      * no temperature / sampling params (removed on Opus 4.x) — determinism comes from the prompt
+      * no temperature / sampling params (removed on Opus 4.x) - determinism comes from the prompt
         and the swap, not a temperature knob.
 
     The judge is a clean swap-in for ScoreJudge: same ``judge(item_id, candidate, baseline)`` ->

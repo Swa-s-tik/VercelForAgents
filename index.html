@@ -462,7 +462,7 @@
       <div class="row"><div class="what">Demo eval samples<small>seeded synthetic judge by default; gate on real model judgments via LLMJudge (agentctl[judge])</small></div><span class="pill sim">SIMULATED</span></div>
       <div class="row"><div class="what">Streamed <code>issue_refund</code> interception ("real refunds: 0")<small>sandbox intercepts the actual streamed tool call, mocked in preview</small></div><span class="pill real">REAL</span></div>
       <div class="row"><div class="what">Bounded drop-on-full shadow queue (both runtimes)<small>a slow shadow can't throttle the primary - Python &amp; Go</small></div><span class="pill real">REAL</span></div>
-      <div class="row"><div class="what">Header-only zero-copy forwarding<small>planned; both runtimes still fully deserialize each frame</small></div><span class="pill next">PLANNED</span></div>
+      <div class="row"><div class="what">Header-only zero-copy forwarding (Go)<small>opt-in AGENTCTL_ZEROCOPY=1: routes by scanning session_id, tags canary_arm by appending to the wire bytes, no per-frame deserialize (8.5x/30x). Python proxy still deserializes</small></div><span class="pill real">REAL · TESTED</span></div>
     </div>
     <div class="legend">
       <span><span class="pill real" style="padding:2px 8px">REAL</span> runs &amp; tested today</span>
@@ -531,7 +531,7 @@
   const cb=document.getElementById('copyBtn');
   cb.addEventListener('click',()=>{navigator.clipboard.writeText('agentctl push').then(()=>{cb.textContent='copied ✓';setTimeout(()=>cb.textContent='copy',1400)})});
 
-  // animated Wilson interval - tightens around 0.53–0.80 then calls ALLOW
+  // animated Wilson interval - tightens around 0.53-0.80 then calls ALLOW
   const frames=[
     {n:18,lo:.30,hi:.85,v:'CONTINUE',col:'var(--cyan)'},
     {n:27,lo:.41,hi:.83,v:'CONTINUE',col:'var(--cyan)'},
