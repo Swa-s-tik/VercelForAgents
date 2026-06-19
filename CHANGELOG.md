@@ -7,6 +7,10 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Hard tenancy FK** (post-1.0). `deployments.project_id` now has a real foreign key to
+  `projects(id)` (RESTRICT) - 1.0 deliberately kept it a soft, seeded reference. Added by ALTER after
+  the bootstrap project (the historic DEMO_PROJECT_ID) is seeded, so every deployment resolves to a
+  real project and the orphan case is now rejected by the database. New: `tests/test_tenancy_fk.py`.
 - **OTLP/HTTP telemetry exporter** (post-1.0). `TELEMETRY_BACKEND=otlp` now ships OTel spans as
   OTLP-JSON over HTTP to any collector's `/v1/traces` (otelcol, Tempo, Jaeger, Honeycomb, Grafana
   Cloud) with **no new dependency** - stdlib urllib, same discipline as the ClickHouse exporter
