@@ -100,6 +100,7 @@ def test_page_is_self_contained_html():
     assert "htmx.org" in html              # the only client dep, from a CDN
     assert "v37" in html                   # live routing version
     assert "eval verdict" in html          # the eval surface is joined into the deploy view
+    assert 'hx-get="/api/dashboard"' in html and 'hx-trigger="every 6s"' in html  # auto-refresh
 
 
 def test_match_verdict_exact_and_prefix():
@@ -237,6 +238,10 @@ def test_index_and_rollback_post():
     assert client.get("/healthz").json() == {"status": "ok"}
     page = client.get("/")
     assert page.status_code == 200 and "agentctl" in page.text and "Deployments" in page.text
+
+    # the auto-refresh fragment endpoint returns the inner region only
+    frag = client.get("/api/dashboard")
+    assert frag.status_code == 200 and "Deployments" in frag.text and "<!doctype" not in frag.text
 
     # 1-click rollback to A (the older sealed deploy) via the htmx POST (sha in the path)
     r = client.post(f"/api/rollback/{SHA_A}")

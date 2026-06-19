@@ -64,6 +64,19 @@ def index():
     return render.page(project_id=project_id, **snap)
 
 
+@app.get("/api/dashboard", response_class=HTMLResponse)
+def dashboard_fragment():
+    """The inner #dash region, for htmx auto-refresh (polled every few seconds) so the live-traffic
+    and routing panels update without a full reload."""
+    project_id = _project_id()
+    conn = connect()
+    try:
+        snap = _snapshot(conn, project_id)
+    finally:
+        conn.close()
+    return render.dashboard_inner(**snap)
+
+
 @app.post("/api/rollback/{to_commit_sha}", response_class=HTMLResponse)
 def rollback(to_commit_sha: str):
     """Roll back to a sealed deployment, then re-render the dashboard region (htmx swaps #dash).
