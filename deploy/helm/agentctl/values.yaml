@@ -7,8 +7,18 @@ postgres:
   user: agentctl
   password: agentctl
   db: agentctl
-  storage: 1Gi
+  # persistence is OFF by default (emptyDir) so a kind/demo cluster needs no storage class.
+  # enable it for a durable Postgres; `size` is only used when enabled.
+  persistence:
+    enabled: false
+    size: 1Gi
   resources: {}
+
+# schema-init runs once at install (DROP+recreate is destructive, so it is NOT re-run on upgrade by
+# default - which also avoids the "Job is immutable" helm upgrade error). Set runOnUpgrade=true only
+# if you intend to re-apply the schema on the next upgrade (this wipes controlplane data).
+schemaInit:
+  runOnUpgrade: false
 
 # images for the two agentctl services. Build + load them into your cluster (see chart README);
 # pullPolicy Never keeps a local/kind cluster from trying to pull a non-published image.

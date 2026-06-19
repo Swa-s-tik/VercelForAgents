@@ -1,11 +1,14 @@
+{{- if or .Release.IsInstall .Values.schemaInit.runOnUpgrade }}
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ include "agentctl.fullname" . }}-schema-init
+  # revision-suffixed so a re-run (runOnUpgrade) never collides with an immutable completed Job.
+  name: {{ include "agentctl.fullname" . }}-schema-init-{{ .Release.Revision }}
   labels: {{- include "agentctl.labels" . | nindent 4 }}
     app.kubernetes.io/component: schema-init
 spec:
   backoffLimit: 20
+  ttlSecondsAfterFinished: 600    # auto-clean the completed Job so it doesn't accumulate
   template:
     metadata:
       labels:
@@ -27,3 +30,4 @@ spec:
           command: ["agentctl", "rollback", "schema"]
           env:
             - { name: AGENTCTL_PG_DSN, value: {{ include "agentctl.pgDsn" . | quote }} }
+{{- end }}
