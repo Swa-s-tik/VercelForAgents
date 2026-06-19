@@ -38,7 +38,8 @@ local commit, without breaking the existing zero-config demo or test suite.
 - ✅ **`users` + `role_bindings`** - delivered ([AUTH_RBAC](design/AUTH_RBAC.md)). A key can belong
   to a user; its effective role is the user's project binding (`COALESCE(binding, key.role)`),
   resolved identically on both planes. Standalone keys keep the 1.0 role-per-key behavior.
-- A hard FK `deployments.project_id → projects.id` (1.0 keeps it a soft, seeded reference).
+- ✅ **Hard FK `deployments.project_id → projects.id`** - delivered. An ALTER after the bootstrap
+  project seed; the orphan case is now rejected by the DB (`tests/test_tenancy_fk.py`).
 - ✅ **Full RBAC enforcement on the Go gateway** - delivered
   ([GO_GATEWAY_RBAC](design/GO_GATEWAY_RBAC.md)). The Go gateway now validates keys against Postgres
   (sha256 lookup + tenant/role checks + a TTL cache), not just a presence check.

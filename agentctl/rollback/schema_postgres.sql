@@ -218,3 +218,13 @@ INSERT INTO api_keys (project_id, name, key_prefix, key_hash, role)
   VALUES ('00000000-0000-0000-0000-0000000000a1','bootstrap','actl_dev_boo',
           '4567f685fabf4123b67e3cda67d3e10b56fbb1dbd5e5df36fe6626429ca27b0a','owner')
   ON CONFLICT (key_hash) DO NOTHING;
+
+-- ---------- hard tenancy FK (post-1.0) ----------
+-- 1.0 deliberately kept deployments.project_id a SOFT reference (no FK) to avoid ordering changes
+-- in the seed/tests. Now that projects is created and the bootstrap project (the historic
+-- DEMO_PROJECT_ID) is seeded above, every deployment's project resolves to a real row, so the FK is
+-- safe to enforce. Added by ALTER (after projects + the seed exist) rather than inline, since the
+-- deployments table is declared before projects. Default RESTRICT: a project with deployments can't
+-- be dropped, which is the correct tenancy invariant.
+ALTER TABLE deployments
+  ADD CONSTRAINT deployments_project_fk FOREIGN KEY (project_id) REFERENCES projects(id);
