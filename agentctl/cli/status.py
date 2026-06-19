@@ -99,13 +99,17 @@ def render(snap: dict, project_id: str, console: Console) -> None:
     console.print()
 
 
-def run_status(project_id: str | None = None, console: Console | None = None) -> int:
+def run_status(project_id: str | None = None, console: Console | None = None,
+               as_json: bool = False) -> int:
     project_id = project_id or DEMO_PROJECT_ID
-    console = console or Console()
     conn = connect()
     try:
+        if as_json:
+            import json
+            print(json.dumps(q.json_snapshot(conn, project_id), indent=2))
+            return 0
         snap = build_snapshot(conn, project_id)
     finally:
         conn.close()
-    render(snap, project_id, console)
+    render(snap, project_id, console or Console())
     return 0

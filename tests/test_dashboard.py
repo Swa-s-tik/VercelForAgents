@@ -178,6 +178,25 @@ def test_verdicts_by_commit_missing_db_is_empty():
     assert q.verdicts_by_commit("/nonexistent/path/eval.duckdb") == {}
 
 
+def test_json_snapshot_is_serializable_and_complete():
+    import json
+    conn = _seeded_conn()
+    try:
+        snap = q.json_snapshot(conn, DEMO_PROJECT_ID)
+        # round-trips through json (datetimes/Decimals normalized)
+        round_tripped = json.loads(json.dumps(snap))
+        assert set(round_tripped) >= {"project_id", "deployments", "verdicts", "traffic",
+                                      "routing_history", "rollbacks", "routing_version"}
+        assert len(round_tripped["deployments"]) >= 2
+        # the /api/state endpoint serves the same
+        from fastapi.testclient import TestClient
+        from agentctl.dashboard.app import app
+        r = TestClient(app).get("/api/state")
+        assert r.status_code == 200 and len(r.json()["deployments"]) >= 2
+    finally:
+        conn.close()
+
+
 def test_stream_telemetry_aggregates_by_arm():
     from psycopg.types.json import Json
     conn = _seeded_conn()

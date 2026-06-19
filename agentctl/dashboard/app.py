@@ -42,6 +42,17 @@ def healthz():
     return {"status": "ok"}
 
 
+@app.get("/api/state")
+def state():
+    """Machine-readable control-plane state (deployments, eval verdicts, traffic, routing timeline)."""
+    project_id = _project_id()
+    conn = connect()
+    try:
+        return q.json_snapshot(conn, project_id)
+    finally:
+        conn.close()
+
+
 @app.get("/", response_class=HTMLResponse)
 def index():
     project_id = _project_id()

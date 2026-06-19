@@ -3,13 +3,42 @@ returns plain dicts/lists (psycopg is opened with dict rows), so render.py and t
 a live connection. Read-only; the only write path is rollback_to_commit, called from app.py."""
 from __future__ import annotations
 
+import datetime as _dt
 import os
+from decimal import Decimal
 from pathlib import Path
 
 import psycopg
 
 # decision severity (worst wins when a commit has several suites)
 _SEVERITY = {"BLOCK": 3, "INCONCLUSIVE": 2, "INSUFFICIENT_DATA": 1, "ALLOW": 0}
+
+
+def _jsonable(v):
+    """Normalize psycopg row values to JSON-safe types (datetime -> ISO string, Decimal -> float)."""
+    if isinstance(v, dict):
+        return {k: _jsonable(x) for k, x in v.items()}
+    if isinstance(v, (list, tuple)):
+        return [_jsonable(x) for x in v]
+    if isinstance(v, (_dt.datetime, _dt.date)):
+        return v.isoformat()
+    if isinstance(v, Decimal):
+        return float(v)
+    return v
+
+
+def json_snapshot(conn: psycopg.Connection, project_id: str) -> dict:
+    """A single JSON-safe view of the control-plane state - the programmatic surface behind both the
+    `/api/state` endpoint and `agentctl status --json`, so external tools/CI can consume it."""
+    return _jsonable({
+        "project_id": project_id,
+        "routing_version": live_routing_version(conn, project_id),
+        "deployments": list_deployments(conn, project_id),
+        "verdicts": verdicts_by_commit(),
+        "traffic": stream_telemetry(conn, project_id),
+        "routing_history": routing_history(conn, project_id),
+        "rollbacks": rollback_history(conn, project_id),
+    })
 
 
 def list_deployments(conn: psycopg.Connection, project_id: str) -> list[dict]:
