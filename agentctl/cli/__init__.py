@@ -196,13 +196,14 @@ def _add_dashboard_parser(sub) -> None:
 
 def _cmd_status(args) -> int:
     from agentctl.cli.status import run_status
-    return run_status(project_id=args.project_id)
+    return run_status(project_id=args.project_id, as_json=args.json)
 
 
 def _add_status_parser(sub) -> None:
     p = sub.add_parser("status", help="terminal summary: deployments, eval verdicts, traffic, rollbacks")
     p.add_argument("--project-id", default=None, dest="project_id",
                    help="project to summarize (default: the bootstrap/demo project)")
+    p.add_argument("--json", action="store_true", help="emit the control-plane state as JSON")
     p.set_defaults(func=_cmd_status)
 
 

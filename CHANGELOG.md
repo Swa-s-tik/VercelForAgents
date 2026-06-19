@@ -7,6 +7,11 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Machine-readable control-plane state** (post-1.0). A JSON view of the whole control plane -
+  deployments, eval verdicts, live traffic, routing timeline, rollbacks - served at `GET /api/state`
+  (dashboard) and emitted by `agentctl status --json`, so CI/external tools can consume it. Shared
+  `queries.json_snapshot` normalizes datetimes/Decimals to JSON-safe types. New tests cover the
+  endpoint + serialization.
 - **Batched telemetry export** (post-1.0). `make_tracer_provider(batch=True)` (or
   `AGENTCTL_TELEMETRY_BATCH=1`) wraps any span exporter in a `BatchSpanProcessor`, so a busy gateway
   queues spans and flushes them off the hot path instead of paying an export round-trip per span.
