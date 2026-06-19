@@ -7,6 +7,14 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Web dashboard** (post-1.0). `agentctl dashboard` serves a server-rendered view of the deploy
+  lifecycle from the Postgres system-of-record: deployments with their live canary/shadow routing
+  weights, a rollback-honesty column (schema-enforced irreversible side effects), rollback history,
+  and a **1-click rollback** button that calls the real `rollback_to_commit` orchestrator (htmx swaps
+  the page region). Zero build step, no new dependency (FastAPI + uvicorn were already deps); pure
+  render functions are unit-tested and a TestClient exercises the page + a real rollback POST over a
+  seeded Postgres. Local operator tool (binds to localhost, no auth). New: `agentctl/dashboard/*`,
+  `tests/test_dashboard.py`, `docs/design/WEB_DASHBOARD.md`.
 - **GitHub-native eval-gate** (post-1.0). `agentctl gate --github` posts the gate verdict to a PR as a
   **commit status** (mapped from the gate's own exit code: ALLOW -> success, BLOCK -> failure, so it
   gates merge) plus a **PR comment** with the per-suite Wilson CIs - making "open a PR -> the agent is

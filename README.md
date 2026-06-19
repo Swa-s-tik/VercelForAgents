@@ -142,6 +142,7 @@ docker compose up --build        # Postgres + Go gateway + Python control plane
 | **Wire conformance** | A golden-wire suite proves the Python proxy and the Go data plane are byte-identical on the frozen header + decode-interoperable (`make conformance`). |
 | **Developer UX** | `agentctl push` - pack → preview → live eval → merge/block, with a rich live terminal. |
 | **GitOps gate** | `agentctl gate --github` posts the eval-gate verdict to a PR as a **commit status** (gates merge: ALLOW → success, BLOCK → failure) + a **comment** with the per-suite Wilson CIs. Ships a reusable GitHub Action + a workflow that dogfoods it on this repo's own PRs. |
+| **Dashboard** | `agentctl dashboard` - a server-rendered web view of the deploy lifecycle from the system-of-record: deployments, live canary/shadow weights, rollback-honesty (irreversible side effects), and **1-click rollback** wired to the real orchestrator. Zero build step (htmx). |
 
 ## Project layout
 

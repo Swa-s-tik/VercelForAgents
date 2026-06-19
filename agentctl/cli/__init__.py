@@ -165,6 +165,23 @@ def _add_eval_parsers(sub) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# dashboard - the web surface over the system-of-record
+# --------------------------------------------------------------------------- #
+def _cmd_dashboard(args) -> int:
+    import uvicorn
+    print(f"agentctl dashboard -> http://{args.host}:{args.port}  (Ctrl-C to stop)")
+    uvicorn.run("agentctl.dashboard.app:app", host=args.host, port=args.port, log_level="warning")
+    return 0
+
+
+def _add_dashboard_parser(sub) -> None:
+    p = sub.add_parser("dashboard", help="serve the web dashboard (deployments, routing, 1-click rollback)")
+    p.add_argument("--host", default="127.0.0.1", help="bind address (localhost by default)")
+    p.add_argument("--port", type=int, default=8050)
+    p.set_defaults(func=_cmd_dashboard)
+
+
+# --------------------------------------------------------------------------- #
 # entrypoint
 # --------------------------------------------------------------------------- #
 def build_parser() -> argparse.ArgumentParser:
@@ -173,6 +190,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="cmd", required=True)
     _add_push_parser(sub)
     _add_eval_parsers(sub)
+    _add_dashboard_parser(sub)
     for mod, fn in (("agentctl.rollback.cli", "add_rollback_parser"),
                     ("agentctl.gateway.cli", "add_gateway_parsers"),
                     ("agentctl.control.cli", "add_webhook_parsers"),

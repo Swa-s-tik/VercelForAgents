@@ -26,6 +26,9 @@ local commit, without breaking the existing zero-config demo or test suite.
 
 ## Post-1.0 (deliberately deferred)
 
+- ✅ **Web dashboard** - delivered ([WEB_DASHBOARD](design/WEB_DASHBOARD.md)). `agentctl dashboard`
+  serves a server-rendered view of deployments + live canary/shadow weights + rollback honesty, with a
+  1-click rollback wired to the real orchestrator. The Vercel-shaped surface over the SoR.
 - ✅ **GitHub-native eval-gate** - delivered ([GITOPS_PR_GATE](design/GITOPS_PR_GATE.md)).
   `agentctl gate --github` posts the verdict to a PR as a commit status (gates merge) + a comment,
   with a reusable composite action and a dogfood workflow on this repo. Makes "open a PR -> auto
