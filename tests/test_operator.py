@@ -99,6 +99,29 @@ def test_reconcile_rejects_wrong_kind_and_missing_commit():
         conn.close()
 
 
+def test_controller_reconcile_body_canary():
+    """The controller's brain (reconcile_body) drives a rollout from a full CR body, no kopf needed."""
+    from agentctl.operator.controller import reconcile_body
+    conn = _seeded()
+    try:
+        body = {"apiVersion": "agentctl.dev/v1alpha1", "kind": "AgentDeployment",
+                "metadata": {"name": "support"}, "spec": {"commit": SHA_A, "weight": 40}}
+        status = reconcile_body(body, conn)
+        assert status["phase"] == "Live" and status["mode"] == "canary"
+        weights = {r["git_commit_sha"]: r["weight"] for r in live_routing(conn, DEMO_PROJECT_ID)}
+        assert weights[SHA_A] == 4000
+    finally:
+        conn.close()
+
+
+def test_controller_imports_without_kopf():
+    # importing the module must not fail when kopf is absent (the reconcile core stays usable)
+    import importlib
+    import agentctl.operator.controller as ctrl
+    importlib.reload(ctrl)
+    assert hasattr(ctrl, "reconcile_body")
+
+
 def test_crd_and_sample_are_valid_yaml():
     yaml = pytest.importorskip("yaml")
     crd = yaml.safe_load(_CRD.read_text())

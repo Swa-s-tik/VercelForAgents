@@ -15,6 +15,11 @@ All notable changes to agentctl are documented here. The format is based on
   persistence on/off.
 
 ### Added
+- **AgentDeployment watch-loop controller** (post-1.0). `agentctl operator run` (a kopf wrapper, opt
+  dep `agentctl[operator]`) watches AgentDeployment CRs and reconciles each via the tested
+  `reconcile_body` -> writes `.status`. The Helm chart deploys it (off by default, `operator.enabled`)
+  with a ServiceAccount + ClusterRole/Binding. So `kubectl apply` of an AgentDeployment now drives a
+  real rollout. New: `agentctl/operator/controller.py`, `deploy/helm/agentctl/templates/operator.yaml`.
 - **Declarative API: the AgentDeployment CRD + `agentctl apply`** (post-1.0). A custom resource
   (`agentctl.dev/v1alpha1`, kind `AgentDeployment`: `commit`, `weight`, `requireGatePR`, `nim`) and a
   reconcile that drives live routing to match it - `gated_rollout` when a gate PR is required, else

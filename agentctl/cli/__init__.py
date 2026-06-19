@@ -223,6 +223,24 @@ def _add_apply_parser(sub) -> None:
     p.set_defaults(func=_cmd_apply)
 
 
+def _cmd_operator(args) -> int:
+    try:
+        import kopf
+    except ImportError:
+        print("the operator needs kopf: pip install 'agentctl[operator]'", file=sys.stderr)
+        return 2
+    import agentctl.operator.controller  # noqa: F401 - registers the kopf handlers on import
+    print("agentctl operator: watching AgentDeployment resources (Ctrl-C to stop)")
+    kopf.run(clusterwide=True)
+    return 0
+
+
+def _add_operator_parser(sub) -> None:
+    op = sub.add_parser("operator", help="run the AgentDeployment watch-loop controller (needs kopf)")
+    opsub = op.add_subparsers(dest="opcmd", required=True)
+    opsub.add_parser("run", help="watch + reconcile AgentDeployment CRs").set_defaults(func=_cmd_operator)
+
+
 def _cmd_status(args) -> int:
     from agentctl.cli.status import run_status
     return run_status(project_id=args.project_id, as_json=args.json)
@@ -248,6 +266,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_dashboard_parser(sub)
     _add_status_parser(sub)
     _add_apply_parser(sub)
+    _add_operator_parser(sub)
     for mod, fn in (("agentctl.rollback.cli", "add_rollback_parser"),
                     ("agentctl.gateway.cli", "add_gateway_parsers"),
                     ("agentctl.control.cli", "add_webhook_parsers"),

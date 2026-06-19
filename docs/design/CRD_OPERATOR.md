@@ -1,6 +1,6 @@
 # Design - Declarative API: the AgentDeployment CRD + reconcile (post-1.0)
 
-**Status:** reconcile shipped; watch-loop controller + hosted GitHub App framed as remaining infra.
+**Status:** reconcile + watch-loop controller shipped; hosted GitHub App framed as remaining infra.
 **Commit:** `feat(operator): AgentDeployment CRD + agentctl apply (declarative rollout)`
 
 ## Why
@@ -28,12 +28,13 @@ contract + a working one-shot reconcile, and identifies exactly what the wrapper
 
 ## What the wrappers add (remaining)
 
-- **Watch-loop controller.** A ~100-line [kopf](https://kopf.readthedocs.io/) handler (or a
-  controller-runtime reconciler) that watches `AgentDeployment` objects and, on create/update, calls
-  `reconcile_agentdeployment` and writes the returned dict to `.status`. All the logic is the
-  reconcile above; the wrapper is the watch + status-write + requeue. Packaged as a Deployment in the
-  Helm chart with RBAC for the CRD. (Not shipped: it needs a controller runtime dependency and a
-  live-cluster e2e to verify honestly.)
+- ✅ **Watch-loop controller (shipped).** `agentctl/operator/controller.py` is a kopf handler whose
+  brain is `reconcile_body` (no kopf needed -> unit-tested directly); the kopf decorators wire
+  watch -> reconcile -> `.status`. Run it with `agentctl operator run` (optional `kopf` dep) or
+  `kopf run -m agentctl.operator.controller`. The Helm chart ships it (off by default,
+  `operator.enabled=true`) as a Deployment + ServiceAccount + ClusterRole/Binding (watch CRs, patch
+  status). The remaining honest step is a live-cluster e2e (an image with `agentctl[operator]` +
+  the CRD applied), the same final check the Helm core had.
 - **Hosted GitHub App.** The reusable Action (`.github/actions/agentctl-gate`) already delivers
   "PR -> eval-gate -> status/check" without any hosted service. A hosted *App* adds: a deployed
   webhook endpoint, per-org installation tokens, and a UI - i.e. multi-tenant hosting of the same gate

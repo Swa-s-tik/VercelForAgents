@@ -42,6 +42,8 @@ dependencies = [
 # managed vector backends (AGENTCTL_STATE_BACKEND=qdrant|pinecone); core install stays slim.
 qdrant = ["qdrant-client>=1.7"]
 pinecone = ["pinecone>=5"]
+# the AgentDeployment watch-loop controller (`agentctl operator run`); the CRD + `apply` need no extra.
+operator = ["kopf>=1.37"]
 # real LLM-as-judge for the eval-gate (agentctl.eval.judge.LLMJudge); needs ANTHROPIC_API_KEY.
 judge = ["anthropic>=0.40"]
 
