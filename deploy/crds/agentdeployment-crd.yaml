@@ -1,0 +1,66 @@
+# The agentctl declarative API. Apply this CRD, then `kubectl apply` an AgentDeployment to drive live
+# routing toward a commit (canary or full promote), optionally gated on an eval-gate result. A
+# watch-loop controller reconciles these by calling agentctl.operator.reconcile (see
+# docs/design/CRD_OPERATOR.md); `agentctl apply -f <cr>.yaml` runs the same reconcile one-shot.
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: agentdeployments.agentctl.dev
+spec:
+  group: agentctl.dev
+  scope: Namespaced
+  names:
+    kind: AgentDeployment
+    plural: agentdeployments
+    singular: agentdeployment
+    shortNames: ["agentdeploy", "ad"]
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: ["commit"]
+              properties:
+                commit:
+                  type: string
+                  description: "deployment commit sha to drive live traffic toward"
+                weight:
+                  type: number
+                  default: 100
+                  minimum: 0
+                  maximum: 100
+                  description: "percent of live traffic (canary); 100 = full promote"
+                requireGatePR:
+                  type: integer
+                  description: "if set, roll out only when this PR's eval gate ALLOWs"
+                nim:
+                  type: number
+                  default: 0.50
+                  description: "non-inferiority margin used with requireGatePR"
+                project:
+                  type: string
+                  description: "project id (default: the bootstrap/demo project)"
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                  description: "Live | Blocked"
+                mode:
+                  type: string
+                  description: "canary | promote"
+                routingVersion:
+                  type: integer
+                gate:
+                  type: string
+      additionalPrinterColumns:
+        - { name: Commit, type: string, jsonPath: .spec.commit }
+        - { name: Weight, type: number, jsonPath: .spec.weight }
+        - { name: Phase, type: string, jsonPath: .status.phase }
