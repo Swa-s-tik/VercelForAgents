@@ -31,6 +31,7 @@ def _snapshot(conn, project_id: str) -> dict:
         "history": q.rollback_history(conn, project_id),
         "routing_version": q.live_routing_version(conn, project_id),
         "verdicts": q.verdicts_by_commit(),  # eval surface joined to the deploy surface (DuckDB)
+        "traffic": q.stream_telemetry(conn, project_id),  # data-plane traffic from otel_spans
     }
 
 

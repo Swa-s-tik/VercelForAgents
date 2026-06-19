@@ -105,6 +105,34 @@ def verdicts_by_commit(db_path: str | None = None) -> dict[str, dict]:
     return by
 
 
+def stream_telemetry(conn: psycopg.Connection, project_id: str, limit: int = 500) -> list[dict]:
+    """Aggregate recent gateway stream spans by canary arm - the data plane's live traffic surfaced
+    in the UI: streams, frames forwarded, shadow drops, and average latency. Reads the same
+    otel_spans the telemetry exporter writes (gateway.stream.metrics). Empty until traffic flows."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            WITH recent AS (
+                SELECT attributes, start_unixnano, end_unixnano
+                FROM controlplane.otel_spans
+                WHERE project_id = %s AND name = 'gateway.stream.metrics'
+                ORDER BY start_unixnano DESC
+                LIMIT %s
+            )
+            SELECT COALESCE(attributes->>'canary_arm', '?')               AS arm,
+                   count(*)                                               AS streams,
+                   COALESCE(sum((attributes->>'measure.frames_out')::float), 0)    AS frames,
+                   COALESCE(sum((attributes->>'measure.shadow_dropped')::float), 0) AS shadow_dropped,
+                   avg((end_unixnano - start_unixnano) / 1e6)             AS avg_latency_ms
+            FROM recent
+            GROUP BY attributes->>'canary_arm'
+            ORDER BY streams DESC
+            """,
+            [project_id, limit],
+        )
+        return cur.fetchall()
+
+
 def rollback_history(conn: psycopg.Connection, project_id: str, limit: int = 10) -> list[dict]:
     with conn.cursor() as cur:
         cur.execute(
