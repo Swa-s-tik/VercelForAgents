@@ -46,6 +46,15 @@ def test_rollback_button_only_for_eligible_targets():
     assert "hx-post" not in live
 
 
+def test_rollout_buttons_on_eligible_only():
+    ready = render.deployments_table([_dep(id=2, status="ready", weight=0, in_live_table=False)], {})
+    assert "/api/rollout/bbbb2222bbbbcccc/10" in ready    # canary 10%
+    assert "/api/rollout/bbbb2222bbbbcccc/100" in ready   # promote
+    # a deploy already at 100% live gets no forward actions
+    live = render.deployments_table([_dep(id=3, status="active", weight=10000)], {})
+    assert "/api/rollout/" not in live
+
+
 def test_empty_states():
     assert "No deployments" in render.deployments_table([], {})
     assert "No rollbacks" in render.history_table([])
@@ -191,3 +200,19 @@ def test_index_and_rollback_post():
     assert "Rolled back" in r.text or "could not be undone" in r.text
     # the refreshed fragment re-renders the deployments section
     assert "Rollback history" in r.text
+
+
+def test_rollout_post():
+    _seeded_conn().close()
+    from fastapi.testclient import TestClient
+    from agentctl.dashboard.app import app
+    from agentctl.rollback.seed import SHA_A
+
+    client = TestClient(app)
+    # 10% canary to A via the dashboard
+    r = client.post(f"/api/rollout/{SHA_A}/10")
+    assert r.status_code == 200
+    assert "Rollout (canary)" in r.text and "Deployments" in r.text
+    # promote A to 100%
+    r2 = client.post(f"/api/rollout/{SHA_A}/100")
+    assert r2.status_code == 200 and "Rollout (promote)" in r2.text

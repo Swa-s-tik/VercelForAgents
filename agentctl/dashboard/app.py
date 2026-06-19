@@ -16,6 +16,7 @@ from agentctl.config import DEMO_PROJECT_ID
 from agentctl.dashboard import queries as q
 from agentctl.dashboard import render
 from agentctl.rollback.rollback import rollback_to_commit
+from agentctl.rollback.rollout import set_canary
 
 app = FastAPI(title="agentctl dashboard")
 
@@ -68,6 +69,26 @@ def rollback(to_commit_sha: str):
             flash_html = f'<div class="flash err">Rollback failed: {render._esc(e)}</div>'
             snap = _snapshot(conn, project_id)
             return HTMLResponse(flash_html + render.dashboard_inner(**snap))
+        snap = _snapshot(conn, project_id)
+    finally:
+        conn.close()
+    return HTMLResponse(flash_html + render.dashboard_inner(**snap))
+
+
+@app.post("/api/rollout/{to_commit_sha}/{weight}", response_class=HTMLResponse)
+def rollout(to_commit_sha: str, weight: float):
+    """Forward rollout (canary or promote) to a deployment, then re-render the dashboard region."""
+    project_id = _project_id()
+    conn = connect()
+    try:
+        try:
+            res = set_canary(conn, project_id, to_commit_sha, weight, actor="dashboard")
+            flash_html = (f'<div class="flash">Rollout ({res["mode"]}) {to_commit_sha[:12]} -> '
+                          f'{weight:g}% - routing v{res["routing_version"]}.</div>')
+        except Exception as e:
+            snap = _snapshot(conn, project_id)
+            return HTMLResponse(f'<div class="flash err">Rollout failed: {render._esc(e)}</div>'
+                                + render.dashboard_inner(**snap))
         snap = _snapshot(conn, project_id)
     finally:
         conn.close()
