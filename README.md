@@ -164,8 +164,8 @@ addition is opt-in: a plain `docker compose up` + `agentctl push` still needs no
 and no ClickHouse. See `docs/ROADMAP_1_0.md` and `docs/design/*.md` for the deep-dives, and
 `CHANGELOG.md` for the 1.0.0 notes.
 
-To keep the marketing honest, here's exactly what runs on a fresh checkout vs. what's simulated or
-still a scaffold:
+For full transparency (the docs and this README say the same as the code), here's exactly what runs
+on a fresh checkout vs. what's simulated or still a scaffold:
 
 | Capability | State |
 |---|---|
