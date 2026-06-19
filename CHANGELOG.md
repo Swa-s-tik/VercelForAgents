@@ -7,6 +7,12 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Header-only fast path on the Python reference proxy** (post-1.0). The Python proxy now has the
+  same opt-in (`AGENTCTL_ZEROCOPY=1`) header-only forwarding as the Go data plane: `gateway/wire.py`
+  scans `session_id` and appends `canary_arm` on the wire bytes (no per-frame deserialize), pinned
+  byte-for-byte against the same golden conformance fixtures (20 cases). `serve()` registers a raw
+  `Converse` (typed `Health`) when zero-copy is on; default registration is unchanged. New:
+  `agentctl/gateway/wire.py`, `tests/test_wire_py.py`, `tests/test_proxy_zerocopy.py`.
 - **Pinecone vector StateStore** (post-1.0): the third managed vector backend, selected via
   `AGENTCTL_STATE_BACKEND=pinecone`. Pinecone has no native aliases, so the alias-swap rollback is
   modelled with a pointer record (one `id=pointer` in a `__live__<project>` namespace whose metadata

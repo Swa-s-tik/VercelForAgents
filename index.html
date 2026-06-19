@@ -462,7 +462,7 @@
       <div class="row"><div class="what">Demo eval samples<small>seeded synthetic judge by default; gate on real model judgments via LLMJudge (agentctl[judge])</small></div><span class="pill sim">SIMULATED</span></div>
       <div class="row"><div class="what">Streamed <code>issue_refund</code> interception ("real refunds: 0")<small>sandbox intercepts the actual streamed tool call, mocked in preview</small></div><span class="pill real">REAL</span></div>
       <div class="row"><div class="what">Bounded drop-on-full shadow queue (both runtimes)<small>a slow shadow can't throttle the primary - Python &amp; Go</small></div><span class="pill real">REAL</span></div>
-      <div class="row"><div class="what">Header-only zero-copy forwarding (Go)<small>opt-in AGENTCTL_ZEROCOPY=1: routes by scanning session_id, tags canary_arm by appending to the wire bytes, no per-frame deserialize (8.5x/30x). Python proxy still deserializes</small></div><span class="pill real">REAL · TESTED</span></div>
+      <div class="row"><div class="what">Header-only zero-copy forwarding (both runtimes)<small>opt-in AGENTCTL_ZEROCOPY=1: routes by scanning session_id, tags canary_arm by appending to the wire bytes, no per-frame deserialize (8.5x/30x on Go). Go data plane + Python reference proxy both have the fast path</small></div><span class="pill real">REAL · TESTED</span></div>
     </div>
     <div class="legend">
       <span><span class="pill real" style="padding:2px 8px">REAL</span> runs &amp; tested today</span>
