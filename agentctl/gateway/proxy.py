@@ -76,19 +76,28 @@ class GatewayServicer(dpg.AgentStreamServicer):
                 yield resp
         finally:
             await pump_task
-            self.stats["shadow_sent"] += sum(s.sent for s in shadows)
-            self.stats["shadow_dropped"] += sum(s.dropped for s in shadows)
-            self.stats["shadow_received"] += sum(s.received for s in shadows)
-            if self._tracer is not None:
-                try:
-                    from agentctl.telemetry.exporter import record_stream_metrics
-                    record_stream_metrics(
-                        self._tracer, session_id=session_id, canary_arm=decision.arm,
-                        measures={"frames_out": float(n_out),
-                                  "shadow_sent": float(sum(s.sent for s in shadows)),
-                                  "shadow_dropped": float(sum(s.dropped for s in shadows))})
-                except Exception:
-                    pass
+            self._record_metrics(session_id, decision.arm, n_out, shadows)
+
+    def _record_metrics(self, session_id: str, arm: str, n_out: int, shadows) -> None:
+        """Roll up + emit per-stream metrics. shadow_received is the count of frames each shadow
+        backend produced - surfaced (not discarded) so the dashboard can show shadow-vs-primary
+        output divergence: the point of a shadow is to see how a candidate would have responded."""
+        recv = sum(s.received for s in shadows)
+        self.stats["shadow_sent"] += sum(s.sent for s in shadows)
+        self.stats["shadow_dropped"] += sum(s.dropped for s in shadows)
+        self.stats["shadow_received"] += recv
+        if self._tracer is None:
+            return
+        try:
+            from agentctl.telemetry.exporter import record_stream_metrics
+            record_stream_metrics(
+                self._tracer, session_id=session_id, canary_arm=arm,
+                measures={"frames_out": float(n_out),
+                          "shadow_sent": float(sum(s.sent for s in shadows)),
+                          "shadow_dropped": float(sum(s.dropped for s in shadows)),
+                          "shadow_received": float(recv)})
+        except Exception:
+            pass
 
     async def Health(self, request, context):
         return dp.HealthReply(ready=True, version_tag="gateway")
@@ -139,9 +148,7 @@ class GatewayServicer(dpg.AgentStreamServicer):
                 yield wire.set_canary_arm(resp, decision.arm)   # append, no deserialize
         finally:
             await pump_task
-            self.stats["shadow_sent"] += sum(s.sent for s in shadows)
-            self.stats["shadow_dropped"] += sum(s.dropped for s in shadows)
-            self.stats["shadow_received"] += sum(s.received for s in shadows)
+            self._record_metrics(session_id, decision.arm, n_out, shadows)
 
 
 async def serve(port: int, servicer: GatewayServicer | None = None,

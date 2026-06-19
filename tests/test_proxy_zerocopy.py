@@ -44,6 +44,7 @@ async def _drive(servicer, inputs):
 
 def test_raw_converse_routes_forwards_and_tags():
     servicer = GatewayServicer.__new__(GatewayServicer)   # bypass __init__ (no PG/route cache)
+    servicer._tracer = None
     servicer.stats = {"sessions": 0, "by_arm": {}, "shadow_sent": 0, "shadow_dropped": 0,
                       "shadow_received": 0}
 
@@ -82,6 +83,7 @@ def test_raw_converse_routes_forwards_and_tags():
 
 def test_raw_converse_empty_stream_is_noop():
     servicer = GatewayServicer.__new__(GatewayServicer)
+    servicer._tracer = None
     servicer.stats = {"sessions": 0, "by_arm": {}}
     servicer.router = types.SimpleNamespace(resolve=lambda sid: pytest.fail("should not route"))
     assert asyncio.run(_drive(servicer, [])) == []
