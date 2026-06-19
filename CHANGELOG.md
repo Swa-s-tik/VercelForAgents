@@ -7,6 +7,9 @@ All notable changes to agentctl are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Dashboard auto-refresh** (post-1.0). The dashboard now polls a fragment endpoint
+  (`GET /api/dashboard`) via htmx every few seconds, so the live-traffic, eval-verdict, and routing
+  panels update without a manual reload - the "Live traffic" panel is actually live.
 - **Machine-readable control-plane state** (post-1.0). A JSON view of the whole control plane -
   deployments, eval verdicts, live traffic, routing timeline, rollbacks - served at `GET /api/state`
   (dashboard) and emitted by `agentctl status --json`, so CI/external tools can consume it. Shared

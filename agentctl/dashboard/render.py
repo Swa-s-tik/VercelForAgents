@@ -239,5 +239,6 @@ def page(deployments, honesty, history, routing_version, project_id: str, verdic
         f"<style>{_CSS}</style></head><body>"
         "<header><h1>agentctl</h1>"
         f'<span class="sub">deploy control plane - project {_short(project_id)}</span></header>'
-        f'<main id="dash">{dashboard_inner(deployments, honesty, history, routing_version, verdicts, traffic, routing)}</main>'
+        f'<main id="dash" hx-get="/api/dashboard" hx-trigger="every 6s" hx-swap="innerHTML">'
+        f'{dashboard_inner(deployments, honesty, history, routing_version, verdicts, traffic, routing)}</main>'
         "</body></html>")
