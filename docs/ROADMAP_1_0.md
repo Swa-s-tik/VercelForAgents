@@ -60,5 +60,7 @@ local commit, without breaking the existing zero-config demo or test suite.
 - ✅ **Declarative API: AgentDeployment CRD + reconcile** - delivered
   ([CRD_OPERATOR](design/CRD_OPERATOR.md)). The custom resource + `agentctl apply -f` (one-shot
   reconcile via the gated-rollout orchestrator) ship now; the watch-loop controller is shipped too
-  (`agentctl operator run`, a kopf wrapper around the reconcile; Helm-deployable, off by default); a
-  hosted GitHub App is the one remaining wrapper (it reuses the existing gate Action).
+  (`agentctl operator run`, a kopf wrapper around the reconcile; Helm-deployable, off by default); the hosted
+  GitHub App's brain ships too - a signed webhook receiver that gates PRs
+  ([GITHUB_APP](design/GITHUB_APP.md), `agentctl gitops-app`); only the hosting (public URL + App
+  registration + per-install tokens) remains, which is ops, not control-plane code.
