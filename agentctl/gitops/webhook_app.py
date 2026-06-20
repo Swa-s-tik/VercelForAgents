@@ -10,6 +10,7 @@ Run: uvicorn agentctl.gitops.webhook_app:app --port 8099   (or: agentctl gitops-
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
@@ -93,4 +94,6 @@ async def webhook(request: Request):
     coords = pr_coords(json.loads(body))
     if coords is None:
         return {"status": "ignored", "reason": "non-actionable pull_request"}
-    return handle_pull_request(coords)
+    # handle_pull_request does blocking I/O (DuckDB gate + two urlopen() calls, up to 15s each). Run it
+    # off the event loop so it can't stall every other concurrent webhook/health request for ~30s.
+    return await asyncio.to_thread(handle_pull_request, coords)
