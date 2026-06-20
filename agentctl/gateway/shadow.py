@@ -57,3 +57,17 @@ class ShadowChannel:
         except (asyncio.TimeoutError, asyncio.CancelledError):
             self._writer.cancel()
             self._drainer.cancel()
+
+    def cancel(self) -> None:
+        """Synchronous, non-blocking teardown for the ABORT path (client disconnected mid-stream).
+        Stops the writer/drainer tasks and cancels the underlying shadow RPC so neither the tasks nor
+        the gRPC call leak. Unlike close() this never awaits, so a stuck shadow can't delay client
+        cleanup. Idempotent and safe to call after close() (cancelling a finished task is a no-op)."""
+        self._writer.cancel()
+        self._drainer.cancel()
+        cancel = getattr(self.call, "cancel", None)
+        if cancel is not None:
+            try:
+                cancel()
+            except Exception:
+                pass

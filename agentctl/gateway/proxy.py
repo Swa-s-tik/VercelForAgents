@@ -64,8 +64,7 @@ class GatewayServicer(dpg.AgentStreamServicer):
                 for s in shadows:
                     s.offer(F.shadow_copy(frame))
             await primary.done_writing()
-            for s in shadows:
-                await s.close()
+            await asyncio.gather(*(s.close() for s in shadows))  # concurrent, not N x 2s serial
 
         pump_task = asyncio.create_task(pump())
         n_out = 0
@@ -75,8 +74,30 @@ class GatewayServicer(dpg.AgentStreamServicer):
                 n_out += 1
                 yield resp
         finally:
-            await pump_task
+            await self._teardown(pump_task, primary, shadows)
             self._record_metrics(session_id, decision.arm, n_out, shadows)
+
+    async def _teardown(self, pump_task: asyncio.Task, primary, shadows) -> None:
+        """Abort-safe teardown for the finally block. On a normal finish pump_task is already done and
+        the shadows were closed gracefully (final received counts collected), so this is a no-op. But
+        when the CLIENT disconnects mid-stream (or the primary errors), pump is blocked on client input
+        that never arrives: awaiting it would hang the finally forever and leak every shadow's
+        writer/drainer tasks + their gRPC calls. So we cancel the pump, then tear down each shadow and
+        the primary RPC unconditionally (cancel() is idempotent / a no-op on already-finished calls)."""
+        if not pump_task.done():
+            pump_task.cancel()
+        try:
+            await pump_task
+        except (asyncio.CancelledError, Exception):
+            pass  # pump failures (shadow/primary write) are isolated; the response was already streamed
+        for s in shadows:
+            s.cancel()
+        cancel = getattr(primary, "cancel", None)
+        if cancel is not None:
+            try:
+                cancel()
+            except Exception:
+                pass
 
     def _record_metrics(self, session_id: str, arm: str, n_out: int, shadows) -> None:
         """Roll up + emit per-stream metrics. shadow_received is the count of frames each shadow
@@ -137,8 +158,7 @@ class GatewayServicer(dpg.AgentStreamServicer):
                 for s in shadows:
                     s.offer(frame)
             await primary.done_writing()
-            for s in shadows:
-                await s.close()
+            await asyncio.gather(*(s.close() for s in shadows))  # concurrent, not N x 2s serial
 
         pump_task = asyncio.create_task(pump())
         n_out = 0
@@ -147,7 +167,7 @@ class GatewayServicer(dpg.AgentStreamServicer):
                 n_out += 1
                 yield wire.set_canary_arm(resp, decision.arm)   # append, no deserialize
         finally:
-            await pump_task
+            await self._teardown(pump_task, primary, shadows)
             self._record_metrics(session_id, decision.arm, n_out, shadows)
 
 
