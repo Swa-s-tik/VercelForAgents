@@ -6,7 +6,34 @@ All notable changes to agentctl are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed
+- **Honest re-versioning to pre-1.0 (0.9.0).** The earlier `1.0.0` tag overstated maturity: the
+  project ships several deliberate stubs, the data-plane/control-plane integration tests are CI-only
+  (they need Postgres/gRPC), and there are no external production users. The package is now `0.9.0`
+  to signal "feature-complete on the roadmap, but pre-stable - the public API may still move." The
+  wire `Frame` header, the `StateStore` protocol, and the auth contract are still the surfaces we aim
+  to keep stable; SemVer guarantees resume at a real `1.0.0`.
+
 ### Fixed
+- **Correctness + safety pass** (post-roadmap review):
+  - *Rollback honesty*: a canary leaves 2+ active deployments, but the rollback inspected only one
+    arbitrary demoted manifest, so an irreversible side-effect on another demoted arm could be dropped
+    and the rollback faked as `completed`. Every demoted arm is now scanned, and the full demoted set
+    is persisted so crash-resume re-runs the union.
+  - *Dashboard authz/CSRF*: the destructive `POST /api/rollback`, `/api/rollout` and the full-snapshot
+    `GET /api/state` had no auth; they now require `principal_dep` (admin / developer / viewer).
+  - *Rollout*: `set_canary` collapsed a multi-primary table to the heaviest arm (dropping the others'
+    traffic); it now rescales every primary proportionally, plus weight-rounding guards and a closed
+    DuckDB handle leak.
+  - *Gateway*: on client disconnect/primary error the shadow pump hung and leaked the shadow tasks +
+    gRPC calls; teardown now cancels and closes them (and closes shadows concurrently, not N x 2s).
+  - *GitHub App webhook*: the blocking gate + GitHub POSTs ran on the asyncio event loop; moved to a
+    worker thread so concurrent deliveries are not starved.
+  - *Operator*: malformed CRs raised `ValueError`, which kopf retried with backoff forever; now mapped
+    to `kopf.PermanentError` (status `phase=Invalid`).
+  - *Route cache*: the LISTEN/NOTIFY watcher died silently on a dropped connection, freezing the
+    gateway on a stale routing table; both watchers now reconnect with capped backoff and reload on
+    reconnect.
 - **Helm chart nits**: `postgres.storage` was set but unused (the volume was always `emptyDir`) - now
   `postgres.persistence.{enabled,size}` selects a real PVC vs emptyDir (default emptyDir for kind).
   And `helm upgrade` is idempotent: the destructive schema-init Job renders only on install (gated by
@@ -194,13 +221,17 @@ All notable changes to agentctl are documented here. The format is based on
 - **`LICENSE`**: the full Apache-2.0 text (the license was already declared in `pyproject.toml`).
 - CI status badge in the README.
 
-## [1.0.0] - 2026-06-18
+## [0.9.0] - 2026-06-18
+
+> Originally tagged `1.0.0`; re-versioned to `0.9.0` (see the Unreleased "Honest re-versioning"
+> note) because the project is feature-complete on the roadmap but still pre-stable.
 
 The production-hardening pass (`docs/ROADMAP_1_0.md`): multi-tenant RBAC, real pgvector/memory state
 stores, a ClickHouse + Grafana telemetry stack, and a cross-runtime proto conformance suite. All
 additions are backward-compatible - the zero-config demo and the prior test suite are unchanged.
-This is the first stable release: the frozen `Frame` header, the `StateStore` protocol, and the
-HTTP/gRPC auth contract are now covered by semantic versioning.
+This is the roadmap-complete milestone: the frozen `Frame` header, the `StateStore` protocol, and the
+HTTP/gRPC auth contract are the surfaces we aim to keep stable, with full SemVer guarantees resuming
+at a real `1.0.0`.
 
 ### Added
 - **Golden-wire proto conformance suite** (Workstream 4). Cross-runtime verification that the Python

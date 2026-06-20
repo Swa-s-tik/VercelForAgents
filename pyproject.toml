@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentctl"
-version = "1.0.0"
+version = "0.9.0"
 description = "A unified GitOps control plane for AI agents: statistical eval-gating, a streaming gRPC gateway, stateful rollback, multi-tenant RBAC, and ClickHouse telemetry."
 readme = "README.md"
 requires-python = ">=3.10"

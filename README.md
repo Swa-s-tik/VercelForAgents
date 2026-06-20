@@ -167,7 +167,7 @@ RBAC, real pgvector/memory state stores, ClickHouse + Grafana telemetry, a golde
 conformance suite) - plus a **Helm chart** and a **PyPI-ready wheel** - are runnable and tested. Every
 addition is opt-in: a plain `docker compose up` + `agentctl push` still needs no API key, no pgvector,
 and no ClickHouse. See `docs/ROADMAP_1_0.md` and `docs/design/*.md` for the deep-dives, and
-`CHANGELOG.md` for the 1.0.0 notes.
+`CHANGELOG.md` for the release notes.
 
 For full transparency (the docs and this README say the same as the code), here's exactly what runs
 on a fresh checkout vs. what's simulated or still a scaffold:
@@ -184,8 +184,11 @@ on a fresh checkout vs. what's simulated or still a scaffold:
 | Bounded drop-on-full shadow queue (both runtimes) | **Real** - a slow shadow can't backpressure the primary on either the Python or the Go path |
 | Header-only zero-copy forwarding (both runtimes) | **Real (opt-in `AGENTCTL_ZEROCOPY=1`)** - routes by scanning `session_id` and tags `canary_arm` by appending to the wire bytes, no per-frame deserialize; 8.5x/30x faster on the hot Go ops, conformance-protected. The Go data plane and the Python reference proxy both have the fast path (default registration unchanged) |
 
-> **Versioning note:** the package is tagged `1.0.0` to mark the roadmap complete; treat the wire,
-> `StateStore`, and auth contracts as the stable surfaces. There are no external production users yet.
+> **Versioning note:** the package is `0.9.0` (pre-1.0). It is feature-complete on the roadmap, but
+> the integration tests are CI-only and there are no external production users yet, so it is honestly
+> pre-stable: the public API may still move. The wire `Frame` header, the `StateStore` protocol, and
+> the auth contract are the surfaces we aim to keep stable; full SemVer guarantees resume at a real
+> `1.0.0`.
 
 ## Community
 
