@@ -90,17 +90,31 @@ class PgRouteCache:
         self._thread.start()
 
     def _watch(self) -> None:
-        conn = psycopg.connect(self.dsn, autocommit=True)
-        conn.execute("LISTEN routing_changed")
-        try:
-            while not self._stop.is_set():
-                got = False
-                for _ in conn.notifies(timeout=1.0):
-                    got = True
-                if got:
-                    self.reload()
-        finally:
-            conn.close()
+        """Hold a dedicated LISTEN connection and reload on each NOTIFY. If the connection drops (DB
+        restart/failover/idle kill) the loop reconnects with capped backoff and reloads on reconnect to
+        catch any NOTIFY missed while disconnected - so the gateway can never get silently stuck serving
+        a stale routing table after a transient DB blip."""
+        backoff = 0.5
+        while not self._stop.is_set():
+            try:
+                conn = psycopg.connect(self.dsn, autocommit=True)
+                try:
+                    conn.execute("LISTEN routing_changed")
+                    self.reload()            # catch up on changes missed while (re)connecting
+                    backoff = 0.5            # connected cleanly -> reset backoff
+                    while not self._stop.is_set():
+                        got = False
+                        for _ in conn.notifies(timeout=1.0):
+                            got = True
+                        if got:
+                            self.reload()
+                finally:
+                    conn.close()
+            except Exception:
+                if self._stop.is_set():
+                    break
+                self._stop.wait(backoff)     # back off, but wake immediately on stop_watching()
+                backoff = min(backoff * 2, 30.0)
 
     def stop_watching(self) -> None:
         self._stop.set()
@@ -119,19 +133,44 @@ class PgRouteCache:
     async def _aiterate(self) -> None:
         # NOTIFY fast-path + version-poll backstop (the PRD's LISTEN/NOTIFY + slow-poll design):
         # notifies(timeout) wakes immediately on a notify and at most every `poll_s` otherwise;
-        # on each wake we reload only if the live routing version actually changed.
+        # on each wake we reload only if the live routing version actually changed. If the LISTEN
+        # connection drops, reconnect with capped backoff (and re-LISTEN) instead of dying silently -
+        # the version poll on the next wake then catches up on anything missed while disconnected.
         poll_s = 0.5
+        backoff = 0.5
         try:
             while not self._stop.is_set():
-                async for _ in self._aconn.notifies(timeout=poll_s):
-                    break                                   # got a notify -> reload now
-                await asyncio.to_thread(self.reload_if_changed)
+                try:
+                    if self._aconn is None or self._aconn.closed:
+                        self._aconn = await psycopg.AsyncConnection.connect(self.dsn, autocommit=True)
+                        await self._aconn.execute("LISTEN routing_changed")
+                        await asyncio.to_thread(self.reload_if_changed)   # catch up after reconnect
+                    backoff = 0.5                                         # connected cleanly
+                    while not self._stop.is_set():
+                        async for _ in self._aconn.notifies(timeout=poll_s):
+                            break                                        # got a notify -> reload now
+                        await asyncio.to_thread(self.reload_if_changed)
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    if self._aconn is not None:
+                        try:
+                            await self._aconn.close()
+                        except Exception:
+                            pass
+                    self._aconn = None
+                    if self._stop.is_set():
+                        break
+                    await asyncio.sleep(backoff)
+                    backoff = min(backoff * 2, 30.0)
         except asyncio.CancelledError:
             pass
-        except Exception:
-            pass
         finally:
-            await self._aconn.close()
+            if self._aconn is not None:
+                try:
+                    await self._aconn.close()
+                except Exception:
+                    pass
 
     async def stop_async_watching(self) -> None:
         self._stop.set()
