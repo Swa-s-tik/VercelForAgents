@@ -73,19 +73,24 @@ def rollback_to_commit(conn: psycopg.Connection, project_id: str,
             "SELECT id FROM controlplane.deployments WHERE project_id=%s AND status='active'",
             [project_id])
         actives = [r["id"] for r in cur.fetchall()]
-    from_dep = actives[0] if actives else to_dep
+    # The flip demotes EVERY active deployment except the target (routing.flip_routing), so we must
+    # inspect EVERY demoted arm's manifest for irreversible side-effects - not just one. A canary
+    # leaves 2+ actives, and picking actives[0] arbitrarily (undefined row order) could miss the arm
+    # that holds the irreversible mutation and fake a 'completed' rollback. (See _realign_state.)
+    from_deps = [a for a in actives if a != to_dep]
+    from_dep = from_deps[0] if from_deps else (actives[0] if actives else to_dep)
 
     target_manifest = mf.load_manifest(conn, to_dep)
     if target_manifest is None:
         raise ValueError("target checkpoint is not sealed; cannot guarantee restore (Phase 0 abort)")
-    from_manifest = mf.load_manifest(conn, from_dep)
 
     with conn.cursor() as cur:
         cur.execute(
             """INSERT INTO controlplane.rollbacks
                (project_id, from_deployment, to_deployment, to_commit_sha, status, manifest_snapshot, initiated_by)
                VALUES (%s,%s,%s,%s,'initiated',%s,%s) RETURNING id""",
-            [project_id, from_dep, to_dep, to_commit_sha, Json(target_manifest.to_json()), actor])
+            [project_id, from_dep, to_dep, to_commit_sha,
+             Json({"target": target_manifest.to_json(), "from_deps": from_deps}), actor])
         rb_id = cur.fetchone()["id"]
     conn.commit()
 
@@ -100,14 +105,15 @@ def rollback_to_commit(conn: psycopg.Connection, project_id: str,
                  {"routing_table_id": rt_id, "version": version})
 
     # ---- Phases 2-4: idempotent state realignment + honest outcome (crash-resumable) ----
-    res = _realign_state(conn, project_id, rb_id, to_dep, from_dep, to_commit_sha,
-                         target_manifest, from_manifest, stores, actor)
+    res = _realign_state(conn, project_id, rb_id, to_dep, from_deps, to_commit_sha,
+                         target_manifest, stores, actor)
     res["routing_version"] = version
     return res
 
 
-def _realign_state(conn: psycopg.Connection, project_id: str, rb_id: int, to_dep: int, from_dep: int,
-                   to_commit_sha: str, target_manifest, from_manifest, stores: dict, actor: str) -> dict:
+def _realign_state(conn: psycopg.Connection, project_id: str, rb_id: int, to_dep: int,
+                   from_deps: list[int], to_commit_sha: str, target_manifest, stores: dict,
+                   actor: str) -> dict:
     """Phases 2-4: per-pointer idempotent state realignment, irreversible-flagging, digest verify, and
     the honest outcome. Every restore is idempotent, so this is safe to RE-RUN - which is exactly what
     ``resume_rollback`` does after a crash mid-realignment (status left at 'state_realigning')."""
@@ -135,13 +141,19 @@ def _realign_state(conn: psycopg.Connection, project_id: str, rb_id: int, to_dep
                 unrollbackable.append({"class": "relational_schema", "store_id": p.store_id, "reason": str(e)})
                 audit.record(conn, project_id, rb_id, actor, "flag_forward_fix", p.store_id, {"reason": str(e)})
 
-    # Flag irreversible damage done by the deployment(s) we rolled PAST (from_manifest).
-    if from_manifest and from_dep != to_dep:
+    # Flag irreversible damage done by EVERY deployment we rolled PAST (every demoted active), not just
+    # one - a canary leaves multiple actives, and the irreversible mutation may live on any of them.
+    for fd in from_deps:
+        if fd == to_dep:
+            continue
+        from_manifest = mf.load_manifest(conn, fd)
+        if from_manifest is None:
+            continue
         for p in from_manifest.pointers:
             if p.reversibility == "irreversible":
                 comp = (p.coordinate or {}).get("compensation")
                 if comp:
-                    # idempotent compensation, guarded by the idempotency key.
+                    # compensation is RECORDED for operator action here, not executed (an honest log).
                     audit.record(conn, project_id, rb_id, actor, "compensate_side_effect", p.store_id,
                                  {"compensation": comp, "idempotency_key": p.coordinate.get("idempotency_key"),
                                   "external_ref": p.coordinate.get("external_ref")})
@@ -205,15 +217,22 @@ def resume_rollback(conn: psycopg.Connection, project_id: str, *, rollback_id: i
     if row is None or row["status"] not in _RESUMABLE:
         return None
     rb_id = row["id"]
-    to_dep, from_dep, to_commit_sha = row["to_deployment"], row["from_deployment"], row["to_commit_sha"]
+    to_dep, to_commit_sha = row["to_deployment"], row["to_commit_sha"]
 
     target_manifest = mf.load_manifest(conn, to_dep)
     if target_manifest is None:
         raise ValueError("target checkpoint is not sealed; cannot resume realignment")
-    from_manifest = mf.load_manifest(conn, from_dep)
-    stores = _stores(conn, project_id)
 
+    # Recover the full set of demoted arms persisted at initiation; fall back to the single
+    # from_deployment column for rollbacks written before from_deps was tracked.
+    snap = row.get("manifest_snapshot")
+    from_deps = snap.get("from_deps") if isinstance(snap, dict) else None
+    if not from_deps:
+        fd = row["from_deployment"]
+        from_deps = [fd] if fd is not None and fd != to_dep else []
+
+    stores = _stores(conn, project_id)
     audit.record(conn, project_id, rb_id, actor, "rollback_resume", to_commit_sha,
                  {"from_status": row["status"]})
-    return _realign_state(conn, project_id, rb_id, to_dep, from_dep, to_commit_sha,
-                          target_manifest, from_manifest, stores, actor)
+    return _realign_state(conn, project_id, rb_id, to_dep, from_deps, to_commit_sha,
+                          target_manifest, stores, actor)

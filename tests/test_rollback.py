@@ -107,8 +107,30 @@ def test_resume_after_crash():
     conn.close()
 
 
+def test_rollback_flags_irreversible_across_multiple_actives():
+    """A canary leaves 2+ active deployments; rolling back must flag the irreversible side-effect on
+    EVERY demoted arm (here B's Stripe charge), not just an arbitrary one - so the outcome is
+    'compensating' regardless of which active row Postgres happens to return first."""
+    conn = connect()
+    apply_schema(conn, _SCHEMA)
+    seed(conn)
+    # the canary-leaves-two-actives state: both A and B are 'active' at once
+    with conn.cursor() as cur:
+        cur.execute("UPDATE controlplane.deployments SET status='active' "
+                    "WHERE project_id=%s AND git_commit_sha IN (%s,%s)",
+                    [DEMO_PROJECT_ID, SHA_A, SHA_B])
+    conn.commit()
+
+    res = rollback_to_commit(conn, DEMO_PROJECT_ID, SHA_A)
+    assert res["status"] == "compensating", res        # B's irreversible charge must be surfaced
+    reasons = " ".join(u["reason"] for u in res["unrollbackable"])
+    assert "compensated via refund" in reasons         # not faked as 'completed'
+    conn.close()
+
+
 if __name__ == "__main__":
     setup_module()
     test_full_rollback()
     test_resume_after_crash()
+    test_rollback_flags_irreversible_across_multiple_actives()
     print("rollback integration tests passed")
