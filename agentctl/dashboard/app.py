@@ -3,14 +3,18 @@ rollback, which calls the real rollback_to_commit orchestrator (atomic flip + id
 realignment) - the same code path as `agentctl rollback run`.
 
 This is a local operator tool: bind it to localhost. It reads/writes the controlplane SoR directly.
+The write paths (/api/rollback, /api/rollout) and /api/state are gated by the API-key dependency
+(roles admin / developer / viewer). Set AGENTCTL_REQUIRE_KEY=1 - mandatory for any non-loopback bind -
+so the no-key bootstrap-owner fallback can't leave a public bind open to forged/CSRF requests.
 
 Run: uvicorn agentctl.dashboard.app:app --port 8050   (or: agentctl dashboard)
 """
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.responses import HTMLResponse
 
+from agentctl.auth.fastapi_dep import principal_dep
 from agentctl.common.db import connect
 from agentctl.config import DEMO_PROJECT_ID
 from agentctl.dashboard import queries as q
@@ -42,7 +46,7 @@ def healthz():
     return {"status": "ok"}
 
 
-@app.get("/api/state")
+@app.get("/api/state", dependencies=[Depends(principal_dep("viewer"))])
 def state():
     """Machine-readable control-plane state (deployments, eval verdicts, traffic, routing timeline)."""
     project_id = _project_id()
@@ -77,7 +81,8 @@ def dashboard_fragment():
     return render.dashboard_inner(**snap)
 
 
-@app.post("/api/rollback/{to_commit_sha}", response_class=HTMLResponse)
+@app.post("/api/rollback/{to_commit_sha}", response_class=HTMLResponse,
+          dependencies=[Depends(principal_dep("admin"))])
 def rollback(to_commit_sha: str):
     """Roll back to a sealed deployment, then re-render the dashboard region (htmx swaps #dash).
     The commit sha is a path param (URL-safe hex), so no form body / python-multipart is needed."""
@@ -100,7 +105,8 @@ def rollback(to_commit_sha: str):
     return HTMLResponse(flash_html + render.dashboard_inner(**snap))
 
 
-@app.post("/api/rollout/{to_commit_sha}/{weight}", response_class=HTMLResponse)
+@app.post("/api/rollout/{to_commit_sha}/{weight}", response_class=HTMLResponse,
+          dependencies=[Depends(principal_dep("developer"))])
 def rollout(to_commit_sha: str, weight: float):
     """Forward rollout (canary or promote) to a deployment, then re-render the dashboard region."""
     project_id = _project_id()
