@@ -23,6 +23,20 @@ def _deployment_id(conn: psycopg.Connection, project_id: str, commit_sha: str) -
     return row["id"]
 
 
+def _split_primaries(primaries: list[dict], budget_bps: int) -> list[dict]:
+    """Rescale existing primary weights proportionally to fill ``budget_bps``, preserving their
+    relative split, instead of collapsing to the heaviest arm. Returns rule dicts whose weights sum to
+    exactly ``budget_bps`` (rounding drift is absorbed by the largest arm). Pure (no I/O) - unit-tested."""
+    total = sum(p["weight"] for p in primaries)
+    rules = [{"deployment_id": p["deployment_id"], "weight": round(budget_bps * p["weight"] / total)}
+             for p in primaries]
+    drift = budget_bps - sum(r["weight"] for r in rules)
+    if drift and rules:
+        i = max(range(len(rules)), key=lambda k: rules[k]["weight"])
+        rules[i]["weight"] += drift
+    return rules
+
+
 def set_canary(conn: psycopg.Connection, project_id: str, commit_sha: str, weight_pct: float,
                *, actor: str = "cli") -> dict:
     """Send ``weight_pct`` of live traffic to ``commit_sha`` as a canary, the rest to the current
@@ -31,13 +45,16 @@ def set_canary(conn: psycopg.Connection, project_id: str, commit_sha: str, weigh
     if not 0 < weight_pct <= 100:
         raise ValueError("weight_pct must be in (0, 100]")
     canary = _deployment_id(conn, project_id, commit_sha)
-    weight_bps = round(weight_pct * 100)
 
-    if weight_bps >= 10000:
+    if weight_pct >= 100:
         _, version = flip_routing(conn, project_id, canary,
                                   reason=f"promote {commit_sha} to 100%", actor=actor)
         mode = "promote"
     else:
+        weight_bps = round(weight_pct * 100)
+        if weight_bps <= 0:
+            raise ValueError(f"weight_pct {weight_pct:g} rounds to 0 bps; use a larger canary weight")
+        weight_bps = min(weight_bps, 9999)  # a canary is never a 100% rule (100% is a promotion)
         current = live_routing(conn, project_id)
         shadows = [{"deployment_id": r["deployment_id"], "weight": 0, "shadow_target": True}
                    for r in current if r["shadow_target"]]
@@ -45,11 +62,11 @@ def set_canary(conn: psycopg.Connection, project_id: str, commit_sha: str, weigh
                      if not r["shadow_target"] and r["deployment_id"] != canary and r["weight"] > 0]
         if not primaries:
             raise ValueError("no current primary to canary against; use a full promotion (weight 100)")
-        primary = max(primaries, key=lambda r: r["weight"])["deployment_id"]
-        rules = [
-            {"deployment_id": primary, "weight": 10000 - weight_bps},
-            {"deployment_id": canary, "weight": weight_bps, "is_canary": True},
-        ] + shadows
+        # Preserve EVERY existing primary, rescaled proportionally into the remaining budget, rather
+        # than collapsing to the heaviest arm (which silently drops the others' live traffic).
+        rules = _split_primaries(primaries, 10000 - weight_bps)
+        rules.append({"deployment_id": canary, "weight": weight_bps, "is_canary": True})
+        rules += shadows
         _, version = install_weighted(conn, project_id, rules,
                                       reason=f"canary {commit_sha} at {weight_pct:g}%", actor=actor)
         # the canary is now a real serving arm - reflect that in its deployment status.
@@ -82,7 +99,10 @@ def gated_rollout(conn: psycopg.Connection, project_id: str, commit_sha: str, we
     from agentctl.storage.duckdb_store import EvalStore
 
     store = EvalStore.open(gate_db) if gate_db else EvalStore.open()
-    verdict, _ = run_gate(store, gate_pr, GateConfig(nim=nim, n_min=n_min))
+    try:  # read-only gate; close before the routing write so we never hold the DuckDB handle across it
+        verdict, _ = run_gate(store, gate_pr, GateConfig(nim=nim, n_min=n_min))
+    finally:
+        store.close()
     if verdict.decision != "ALLOW":
         return verdict, None
     return verdict, set_canary(conn, project_id, commit_sha, weight_pct, actor=actor)
