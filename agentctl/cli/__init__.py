@@ -223,6 +223,20 @@ def _add_apply_parser(sub) -> None:
     p.set_defaults(func=_cmd_apply)
 
 
+def _cmd_gitops_app(args) -> int:
+    import uvicorn
+    print(f"agentctl github app (webhook receiver) -> http://{args.host}:{args.port}/webhook")
+    uvicorn.run("agentctl.gitops.webhook_app:app", host=args.host, port=args.port, log_level="warning")
+    return 0
+
+
+def _add_gitops_app_parser(sub) -> None:
+    p = sub.add_parser("gitops-app", help="run the GitHub App webhook receiver (gates PRs on push)")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=8099)
+    p.set_defaults(func=_cmd_gitops_app)
+
+
 def _cmd_operator(args) -> int:
     try:
         import kopf
@@ -267,6 +281,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_status_parser(sub)
     _add_apply_parser(sub)
     _add_operator_parser(sub)
+    _add_gitops_app_parser(sub)
     for mod, fn in (("agentctl.rollback.cli", "add_rollback_parser"),
                     ("agentctl.gateway.cli", "add_gateway_parsers"),
                     ("agentctl.control.cli", "add_webhook_parsers"),

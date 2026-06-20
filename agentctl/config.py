@@ -21,6 +21,9 @@ VECTOR_DIM = int(os.environ.get("AGENTCTL_VECTOR_DIM", "8"))
 QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY", "")
 PINECONE_INDEX = os.environ.get("PINECONE_INDEX", "agentctl")
+# GitHub App webhook (agentctl gitops-app): the App's webhook secret + token for posting back.
+GH_WEBHOOK_SECRET = os.environ.get("AGENTCTL_GH_WEBHOOK_SECRET", "")
+GH_TOKEN = os.environ.get("AGENTCTL_GH_TOKEN", "")
 
 # Telemetry boundary: 'postgres' (default, short buffer) | 'clickhouse' (prod warehouse).
 TELEMETRY_BACKEND = os.environ.get("TELEMETRY_BACKEND", "postgres")

@@ -15,6 +15,12 @@ All notable changes to agentctl are documented here. The format is based on
   persistence on/off.
 
 ### Added
+- **GitHub App webhook receiver** (post-1.0). `agentctl gitops-app` runs the hosted App's brain: a
+  signed (`X-Hub-Signature-256` HMAC, fail-closed) webhook receiver that routes `pull_request` events,
+  gates the PR against its ingested eval runs, and posts the verdict back via `github_gate`. The
+  webhook-triggered counterpart of the CI-triggered reusable Action; hosting (a public URL + the App
+  registration + per-install tokens) is the remaining ops step. New: `agentctl/gitops/webhook_app.py`,
+  `tests/test_github_app.py`, `docs/design/GITHUB_APP.md`.
 - **Shadow output divergence** (post-1.0). The shadow lane mirrors traffic to a candidate backend but
   used to discard its responses with no signal. The proxy now emits `shadow_received` (frames the
   shadow produced) per stream, and the dashboard's Live-traffic panel shows shadow-vs-primary output
