@@ -35,10 +35,19 @@ def _register() -> None:
     @kopf.on.create("agentctl.dev", "v1alpha1", "agentdeployments")
     @kopf.on.update("agentctl.dev", "v1alpha1", "agentdeployments")
     def reconcile_cr(body, patch, logger, **_):
-        status = reconcile_body(body)
+        name = (body.get("metadata") or {}).get("name")
+        try:
+            status = reconcile_body(body)
+        except ValueError as e:
+            # A malformed/unprocessable spec (bad apiVersion/kind, missing commit, invalid weight):
+            # retrying can never fix it, so raise PermanentError to STOP kopf's retry loop and record
+            # the reason on .status - instead of hammering the API server with backoff forever. Any
+            # other exception (e.g. a transient DB outage) propagates as a temporary error kopf retries.
+            patch.status.update({"phase": "Invalid", "reason": str(e)})
+            logger.warning("AgentDeployment %s rejected: %s", name, e)
+            raise kopf.PermanentError(str(e)) from e
         patch.status.update(status)            # kopf persists this to the CR's .status subresource
-        logger.info("AgentDeployment %s -> %s",
-                    (body.get("metadata") or {}).get("name"), status.get("phase"))
+        logger.info("AgentDeployment %s -> %s", name, status.get("phase"))
         return status
 
 
