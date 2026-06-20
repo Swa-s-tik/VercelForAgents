@@ -68,22 +68,35 @@ class GatewayServicer(dpg.AgentStreamServicer):
 
         pump_task = asyncio.create_task(pump())
         n_out = 0
+        completed = False
         try:
             async for resp in primary:
                 resp.attributes["canary_arm"] = decision.arm
                 n_out += 1
                 yield resp
+            completed = True   # response stream ended normally -> pump may flush & close gracefully
         finally:
-            await self._teardown(pump_task, primary, shadows)
+            await self._teardown(pump_task, primary, shadows, completed)
             self._record_metrics(session_id, decision.arm, n_out, shadows)
 
-    async def _teardown(self, pump_task: asyncio.Task, primary, shadows) -> None:
-        """Abort-safe teardown for the finally block. On a normal finish pump_task is already done and
-        the shadows were closed gracefully (final received counts collected), so this is a no-op. But
-        when the CLIENT disconnects mid-stream (or the primary errors), pump is blocked on client input
-        that never arrives: awaiting it would hang the finally forever and leak every shadow's
-        writer/drainer tasks + their gRPC calls. So we cancel the pump, then tear down each shadow and
-        the primary RPC unconditionally (cancel() is idempotent / a no-op on already-finished calls)."""
+    async def _teardown(self, pump_task: asyncio.Task, primary, shadows, completed: bool) -> None:
+        """Settle the pump and tear down shadows + the primary RPC in the finally.
+
+        completed=True (the response stream ended normally): the client's inbound stream has also
+        ended, so the pump finishes on its own - AWAIT it so the last inbound frames are flushed to the
+        primary and the shadows are closed gracefully (final received counts collected). Cancelling
+        here instead would truncate the in-flight inbound forwarding - the bug this replaces.
+
+        completed=False (abnormal exit: client disconnect, primary error, or cancellation): the pump
+        may be blocked on inbound client frames that never arrive, so awaiting would hang the finally
+        forever and leak every shadow's writer/drainer tasks + their gRPC calls. Cancel the pump and
+        tear everything down (cancel() is idempotent / a no-op on already-finished calls)."""
+        if completed:
+            try:
+                await pump_task
+            except Exception:
+                pass  # a late pump/shadow error must not fail a response we already streamed in full
+            return
         if not pump_task.done():
             pump_task.cancel()
         try:
@@ -162,12 +175,14 @@ class GatewayServicer(dpg.AgentStreamServicer):
 
         pump_task = asyncio.create_task(pump())
         n_out = 0
+        completed = False
         try:
             async for resp in primary:                          # raw bytes
                 n_out += 1
                 yield wire.set_canary_arm(resp, decision.arm)   # append, no deserialize
+            completed = True   # response stream ended normally -> pump may flush & close gracefully
         finally:
-            await self._teardown(pump_task, primary, shadows)
+            await self._teardown(pump_task, primary, shadows, completed)
             self._record_metrics(session_id, decision.arm, n_out, shadows)
 
 
