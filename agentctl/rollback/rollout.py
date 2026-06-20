@@ -7,9 +7,12 @@ This closes the loop: agentctl could already roll *back*; now it can roll *forwa
 """
 from __future__ import annotations
 
-import psycopg
+from typing import TYPE_CHECKING
 
 from agentctl.rollback.routing import flip_routing, install_weighted, live_routing
+
+if TYPE_CHECKING:  # psycopg is used only in type hints (lazy under `from __future__ annotations`),
+    import psycopg  # so the pure helpers here (e.g. _split_primaries) import without psycopg installed.
 
 
 def _deployment_id(conn: psycopg.Connection, project_id: str, commit_sha: str) -> int:

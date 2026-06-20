@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
-import psycopg
+if TYPE_CHECKING:  # psycopg is used only in type hints (lazy under `from __future__ annotations`),
+    import psycopg  # so importing this module does not require psycopg to be installed.
 
 
 def flip_routing(conn: psycopg.Connection, project_id: str, to_deployment_id: int,
